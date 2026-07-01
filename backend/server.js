@@ -471,7 +471,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ================================================================
-// API LOGS - CHỈ WHITELIST IP
+// API LOGS - CHỈ WHITELIST IP (ĐÃ SỬA LỖI HIỂN THỊ THỜI GIAN)
 // ================================================================
 app.get('/api/logs', (req, res) => {
     const clientIP = req.headers['x-forwarded-for'] || 
@@ -497,16 +497,21 @@ app.get('/api/logs', (req, res) => {
     const now = Date.now();
     
     const sanitizedLogs = logs.slice(0, limit).map(log => {
+        // ===== PHẦN QUAN TRỌNG: LẤY THỜI GIAN HẾT HẠN TỪ CUSTOM EXPIRE =====
         let expireTime;
         let expireMinutes;
+        
+        // Ưu tiên sử dụng customExpire nếu có
         if (log.customExpire) {
             expireTime = log.customExpire;
             expireMinutes = log.expireMinutes || 100;
         } else {
+            // Fallback về mặc định nếu không có customExpire
             const logTime = new Date(log.timestamp).getTime();
             expireTime = logTime + EXPIRE_TIME;
             expireMinutes = SETTINGS.EXPIRE_TIME_MINUTES;
         }
+        // ===== KẾT THÚC PHẦN QUAN TRỌNG =====
         
         const timeRemaining = expireTime - now;
         const minutesRemaining = Math.floor(timeRemaining / 60000);
@@ -1099,7 +1104,6 @@ app.get('/api/stats', (req, res) => {
     const logs = cleanExpiredLogs();
     const accessKeys = readAccessKeys();
     
-    // Đếm số browser unique
     const uniqueBrowsers = new Set();
     logs.forEach(log => {
         if (log.browserId) {
