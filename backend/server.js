@@ -145,7 +145,8 @@ if (SERVE_HTML) {
                         html: '/index.html',
                         admin: '/admin.html',
                         dashboard: '/dashboard',
-                        checkBrowser: '/api/check-browser'
+                        checkBrowser: '/api/check-browser',
+                        howtouse: '/howtouse'
                     },
                     timestamp: new Date().toISOString()
                 });
@@ -177,7 +178,8 @@ if (SERVE_HTML) {
                     access: '/api/access (GET)',
                     request: '/api/request (GET - cần access key)',
                     stats: '/api/stats',
-                    checkBrowser: '/api/check-browser'
+                    checkBrowser: '/api/check-browser',
+                    howtouse: '/howtouse'
                 },
                 note: 'Frontend folder not found. Please add frontend/index.html',
                 timestamp: new Date().toISOString()
@@ -215,6 +217,158 @@ app.get('/dashboard', (req, res) => {
             message: 'dashboard.html not found'
         });
     }
+});
+
+// ================================================================
+// HOW TO USE - Hướng dẫn sử dụng API (CHỈ WHITELIST IP) - JSON
+// ================================================================
+app.get('/howtouse', (req, res) => {
+    const clientIP = req.headers['x-forwarded-for'] || 
+                     req.headers['x-real-ip'] || 
+                     req.connection.remoteAddress || 
+                     req.socket.remoteAddress || 
+                     '0.0.0.0';
+    
+    const cleanIP = clientIP.replace('::ffff:', '').replace('::1', '127.0.0.1').split(',')[0].trim();
+    
+    // Kiểm tra whitelist
+    if (!isWhitelisted(cleanIP)) {
+        if (DEBUG) console.log(`⛔ IP ${cleanIP} bị từ chối truy cập /howtouse`);
+        return res.status(403).json({
+            success: false,
+            message: 'Forbidden: Access denied. Only whitelisted IPs can access this page.'
+        });
+    }
+    
+    if (DEBUG) console.log(`✅ IP ${cleanIP} (whitelist) truy cập /howtouse`);
+    
+    // Trả về JSON hướng dẫn
+    res.json({
+        success: true,
+        message: '📖 API Key Manager - Hướng dẫn sử dụng',
+        version: '1.0.0',
+        server: 'https://key-system-aurahub.onrender.com',
+        documentation: {
+            overview: {
+                title: 'Tổng quan',
+                description: 'Hệ thống quản lý key API với tính năng bảo mật whitelist IP, browser fingerprint và cooldown 99 phút.',
+                features: [
+                    '🔐 Bảo mật whitelist IP',
+                    '🖥️ Browser fingerprint - mỗi browser 1 key / 99 phút',
+                    '⏱ Custom expire time (tối đa 7 ngày)',
+                    '📊 Dashboard thống kê chi tiết',
+                    '🔑 Tạo key tự động với access key'
+                ]
+            },
+            endpoints: {
+                health: {
+                    method: 'GET',
+                    url: '/api/health',
+                    description: 'Kiểm tra trạng thái server',
+                    example: 'curl https://key-system-aurahub.onrender.com/api/health'
+                },
+                access: {
+                    method: 'GET',
+                    url: '/api/access',
+                    description: 'Lấy access key (dùng 1 lần, hết hạn sau 100 phút)',
+                    example: 'curl https://key-system-aurahub.onrender.com/api/access'
+                },
+                request: {
+                    method: 'GET',
+                    url: '/api/request?access_key=YOUR_ACCESS_KEY&email=your@email.com&expire_minutes=10080&browser_id=BROWSER-xxxxx',
+                    description: 'Tạo key mới (cần access key, hỗ trợ custom expire, browser cooldown)',
+                    params: {
+                        access_key: 'required - Access key lấy từ /api/access',
+                        email: 'optional - Email người dùng (mặc định: guest@example.com)',
+                        expire_minutes: 'optional - Thời gian hết hạn (phút, tối đa 10080 = 7 ngày, mặc định: 100)',
+                        browser_id: 'optional - Browser ID để áp dụng cooldown 99 phút'
+                    },
+                    example: 'curl "https://key-system-aurahub.onrender.com/api/request?access_key=YOUR_ACCESS_KEY&email=test@test.com&expire_minutes=10080&browser_id=BROWSER-xxxxx"'
+                },
+                logs: {
+                    method: 'GET',
+                    url: '/api/logs',
+                    description: 'Xem logs (CHỈ WHITELIST IP)',
+                    example: 'curl https://key-system-aurahub.onrender.com/api/logs'
+                },
+                keys: {
+                    method: 'GET',
+                    url: '/api/keys',
+                    description: 'Xem danh sách key (CHỈ WHITELIST IP)',
+                    example: 'curl https://key-system-aurahub.onrender.com/api/keys'
+                },
+                stats: {
+                    method: 'GET',
+                    url: '/api/stats',
+                    description: 'Xem thống kê (CHỈ WHITELIST IP)',
+                    example: 'curl https://key-system-aurahub.onrender.com/api/stats'
+                },
+                checkBrowser: {
+                    method: 'GET',
+                    url: '/api/check-browser?browser_id=BROWSER-xxxxx',
+                    description: 'Kiểm tra browser đã có key chưa',
+                    example: 'curl "https://key-system-aurahub.onrender.com/api/check-browser?browser_id=BROWSER-xxxxx"'
+                },
+                dashboard: {
+                    method: 'GET',
+                    url: '/dashboard',
+                    description: 'Dashboard thống kê (CHỈ WHITELIST IP)',
+                    example: 'https://key-system-aurahub.onrender.com/dashboard'
+                },
+                admin: {
+                    method: 'GET',
+                    url: '/admin.html',
+                    description: 'Trang quản trị (CHỈ WHITELIST IP)',
+                    example: 'https://key-system-aurahub.onrender.com/admin.html'
+                },
+                howtouse: {
+                    method: 'GET',
+                    url: '/howtouse',
+                    description: 'Hướng dẫn sử dụng API (CHỈ WHITELIST IP)',
+                    example: 'https://key-system-aurahub.onrender.com/howtouse'
+                },
+                deleteLogs: {
+                    method: 'DELETE',
+                    url: '/api/logs',
+                    description: 'Xóa tất cả logs (cần Admin Key)',
+                    headers: { 'X-Admin-Key': 'your-secret-key' },
+                    example: 'curl -X DELETE https://key-system-aurahub.onrender.com/api/logs -H "X-Admin-Key: your-secret-key"'
+                }
+            },
+            browser_cooldown: {
+                enabled: true,
+                duration: '99 phút',
+                description: 'Mỗi browser chỉ được tạo 1 key trong vòng 99 phút',
+                how_it_works: 'Browser fingerprint được tạo từ User Agent, Screen, Timezone, Platform, WebGL, Fonts...',
+                storage: 'Browser ID được lưu trong sessionStorage'
+            },
+            expire_options: {
+                default: '100 phút',
+                max: '7 ngày (10080 phút)',
+                min: '1 phút',
+                note: 'Key sẽ tự động bị xóa sau thời gian đã chọn'
+            },
+            security: {
+                whitelist_ips: WHITELIST_IPS,
+                cors: 'Chỉ cho phép các domain được cấu hình',
+                admin_key: 'Required for DELETE operations',
+                browser_fingerprint: 'Enabled - Mỗi browser 1 key / 99 phút'
+            },
+            web_ui: {
+                url: 'https://key-system-aurahub.onrender.com',
+                admin: 'https://key-system-aurahub.onrender.com/admin.html',
+                dashboard: 'https://key-system-aurahub.onrender.com/dashboard',
+                description: 'Giao diện web để tạo và quản lý key'
+            },
+            example_workflow: {
+                step1: 'Lấy access key: GET /api/access',
+                step2: 'Tạo key: GET /api/request?access_key=YOUR_ACCESS_KEY&email=your@email.com&expire_minutes=10080',
+                step3: 'Kiểm tra key: GET /api/logs (whitelist only)',
+                step4: 'Xem dashboard: GET /dashboard (whitelist only)'
+            }
+        },
+        timestamp: new Date().toISOString()
+    });
 });
 
 // ================================================================
@@ -1251,7 +1405,8 @@ app.listen(PORT, () => {
     console.log(`   📊 /api/stats`);
     console.log(`   📋 /api/keys`);
     console.log(`   📁 /admin.html`);
-    console.log(`   📊 /dashboard (WHITELIST ONLY)\n`);
+    console.log(`   📊 /dashboard (WHITELIST ONLY)`);
+    console.log(`   📖 /howtouse (WHITELIST ONLY - JSON)\n`);
     
     cleanExpiredLogs();
     cleanExpiredAccessKeys();
