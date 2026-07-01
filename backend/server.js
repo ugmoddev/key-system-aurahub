@@ -629,7 +629,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ================================================================
-// API LOGS - CHỈ WHITELIST IP
+// API LOGS - CHỈ WHITELIST IP (ĐÃ SỬA LỖI HIỂN THỊ THỜI GIAN)
 // ================================================================
 app.get('/api/logs', (req, res) => {
     const clientIP = req.headers['x-forwarded-for'] || 
@@ -655,19 +655,25 @@ app.get('/api/logs', (req, res) => {
     const now = Date.now();
     
     const sanitizedLogs = logs.slice(0, limit).map(log => {
+        // ============================================================
+        // 🔥 QUAN TRỌNG: LẤY THỜI GIAN HẾT HẠN TỪ CUSTOM EXPIRE
+        // ============================================================
         let expireTime;
         let expireMinutes;
         
+        // Ưu tiên sử dụng customExpire nếu có trong log
         if (log.customExpire) {
             expireTime = log.customExpire;
             expireMinutes = log.expireMinutes || 100;
             if (DEBUG) console.log(`✅ Key ${log.key} dùng customExpire: ${expireMinutes} phút`);
         } else {
+            // Fallback về mặc định nếu không có customExpire
             const logTime = new Date(log.timestamp).getTime();
             expireTime = logTime + EXPIRE_TIME;
             expireMinutes = SETTINGS.EXPIRE_TIME_MINUTES;
             if (DEBUG) console.log(`⚠️ Key ${log.key} dùng default: ${expireMinutes} phút`);
         }
+        // ============================================================
         
         const timeRemaining = expireTime - now;
         const minutesRemaining = Math.floor(timeRemaining / 60000);
@@ -696,7 +702,7 @@ app.get('/api/logs', (req, res) => {
             method: log.method || 'GET',
             source: log.source || 'browser',
             browserId: log.browserId || null,
-            is_admin: log.isAdmin || isWhitelisted(log.ip) || false,
+            is_admin: log.isAdmin || false,
             access_key_used: log.access_key_used ? log.access_key_used.substring(0, 30) + '...' : null,
             expires_at: new Date(expireTime).toISOString(),
             expire_minutes: expireMinutes,
@@ -751,7 +757,7 @@ app.get('/api/keys', (req, res) => {
                 method: log.method || 'GET',
                 source: log.source || 'browser',
                 browserId: log.browserId || null,
-                is_admin: log.isAdmin || isWhitelisted(log.ip) || false,
+                is_admin: log.isAdmin || false,
                 customExpire: log.customExpire || null,
                 expireMinutes: log.expireMinutes || SETTINGS.EXPIRE_TIME_MINUTES
             };
