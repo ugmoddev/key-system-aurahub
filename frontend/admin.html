@@ -87,6 +87,12 @@
             border: 1px solid rgba(102, 126, 234, 0.2);
         }
 
+        .badge.gold {
+            background: rgba(255, 215, 0, 0.15);
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
         /* IP Bar */
         .ip-bar {
             display: flex;
@@ -125,6 +131,33 @@
             color: #ff6b6b;
         }
 
+        /* Admin Info */
+        .admin-info {
+            padding: 10px 20px;
+            background: rgba(255, 215, 0, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 215, 0, 0.1);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 14px;
+            color: rgba(255, 215, 0, 0.7);
+        }
+
+        .admin-info .privilege {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(255, 215, 0, 0.08);
+            border-radius: 12px;
+            font-size: 12px;
+            color: #ffd700;
+        }
+
         /* Stats Grid */
         .stats-grid {
             display: grid;
@@ -155,21 +188,12 @@
             letter-spacing: 1px;
         }
 
-        .stat-card .number.green {
-            color: #64ffda;
-        }
-        .stat-card .number.yellow {
-            color: #ffc107;
-        }
-        .stat-card .number.purple {
-            color: #a78bfa;
-        }
-        .stat-card .number.orange {
-            color: #fb923c;
-        }
-        .stat-card .number.red {
-            color: #ff6b6b;
-        }
+        .stat-card .number.green { color: #64ffda; }
+        .stat-card .number.yellow { color: #ffc107; }
+        .stat-card .number.purple { color: #a78bfa; }
+        .stat-card .number.orange { color: #fb923c; }
+        .stat-card .number.red { color: #ff6b6b; }
+        .stat-card .number.gold { color: #ffd700; }
 
         /* Main Content */
         .main-grid {
@@ -364,6 +388,10 @@
             color: #ff6b6b;
         }
 
+        .key-info .expire.admin {
+            color: #ffd700;
+        }
+
         /* Key List */
         .key-list {
             max-height: 400px;
@@ -444,6 +472,11 @@
             color: #ff6b6b;
         }
 
+        .expire-tag.admin-tag {
+            background: rgba(255, 215, 0, 0.1);
+            color: #ffd700;
+        }
+
         .empty-state {
             text-align: center;
             padding: 30px 20px;
@@ -482,6 +515,12 @@
             background: rgba(102, 126, 234, 0.12);
             color: #a78bfa;
             border: 1px solid rgba(102, 126, 234, 0.15);
+        }
+
+        .toast.warning {
+            background: rgba(255, 193, 7, 0.12);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.15);
         }
 
         @keyframes slideUp {
@@ -590,6 +629,10 @@
                 font-size: 13px;
                 padding: 12px 18px;
             }
+            .admin-info {
+                font-size: 12px;
+                padding: 8px 14px;
+            }
         }
     </style>
 </head>
@@ -609,7 +652,7 @@
             <h1>🔑 Key Manager</h1>
             <div class="info">
                 <span class="badge success" id="statusBadge">✅ Online</span>
-                <span class="badge info" id="roleBadge">👑 Admin</span>
+                <span class="badge gold" id="roleBadge">👑 Admin</span>
             </div>
         </div>
 
@@ -621,6 +664,16 @@
             </div>
             <div>
                 <span class="status-msg allowed" id="statusMsg">✅ Whitelist verified</span>
+            </div>
+        </div>
+
+        <!-- Admin Info -->
+        <div class="admin-info" id="adminInfo">
+            <span>🔑 <strong>Admin Privileges</strong></span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <span class="privilege">✅ Không giới hạn 1 key/IP</span>
+                <span class="privilege">✅ Không cooldown 99 phút</span>
+                <span class="privilege">⏱ Tối đa 90 ngày</span>
             </div>
         </div>
 
@@ -650,6 +703,7 @@
             <div class="card">
                 <div class="card-title">
                     <span class="icon">✨</span> Tạo Key Mới
+                    <span style="margin-left:auto;font-size:11px;color:rgba(255,215,0,0.4);">🔑 Admin</span>
                 </div>
 
                 <div class="form-group">
@@ -663,13 +717,16 @@
                         <select id="expireSelect">
                             <option value="15">15 phút</option>
                             <option value="30">30 phút</option>
-                            <option value="60" selected>1 giờ</option>
+                            <option value="60">1 giờ</option>
                             <option value="120">2 giờ</option>
                             <option value="360">6 giờ</option>
                             <option value="720">12 giờ</option>
                             <option value="1440">24 giờ</option>
                             <option value="4320">3 ngày</option>
-                            <option value="10080">7 ngày</option>
+                            <option value="10080" selected>7 ngày</option>
+                            <option value="20160">14 ngày</option>
+                            <option value="43200">30 ngày</option>
+                            <option value="129600">90 ngày</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -725,8 +782,8 @@
         // 📌 CẤU HÌNH
         // ================================================================
         const CONFIG = {
-            API_BASE: 'https://key-system-aurahub.onrender.com', // URL backend
-            ALLOWED_IPS: ['14.162.99.92'], // Whitelist IPs - Thêm IP của bạn vào đây
+            API_BASE: 'https://key-system-aurahub.onrender.com',
+            ALLOWED_IPS: ['14.162.99.92'],
             DEBUG: true
         };
 
@@ -763,6 +820,7 @@
         const clearAllBtn = $('clearAllBtn');
         const blockedOverlay = $('blockedOverlay');
         const blockedIP = $('blockedIP');
+        const adminInfo = $('adminInfo');
 
         const statTotal = $('statTotal');
         const statActive = $('statActive');
@@ -875,14 +933,13 @@
                 }
                 const accessKey = accessData.data.access_key;
 
-                // Then get main key
-                const url = `${CONFIG.API_BASE}/api/request?access_key=${encodeURIComponent(accessKey)}&email=${encodeURIComponent(email)}`;
+                // Then get main key - THÊM PARAMETER EXPIRE_MINUTES
+                const url = `${CONFIG.API_BASE}/api/request?access_key=${encodeURIComponent(accessKey)}&email=${encodeURIComponent(email)}&expire_minutes=${expireMinutes}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
 
                 if (data.success && data.data) {
-                    // Store with custom expire
                     const keyData = {
                         key: data.data.key,
                         ip: data.data.ip,
@@ -891,7 +948,8 @@
                         expireMinutes: expireMinutes,
                         customExpire: getExpireTime(expireMinutes),
                         prefix: prefix,
-                        action: 'admin_generate'
+                        action: 'admin_generate',
+                        isAdmin: true
                     };
                     return keyData;
                 }
@@ -943,6 +1001,7 @@
                 const key = item.key || '---';
                 const ip = item.ip || '---';
                 const timestamp = item.timestamp || new Date().toISOString();
+                const isAdmin = item.is_admin || item.isAdmin || false;
                 
                 // Check if custom expire exists
                 let expireTime;
@@ -973,18 +1032,24 @@
 
                 const displayTime = isExpired ? 'Hết hạn' : formatTime(timeRemaining);
                 const tagClass = isExpired ? 'expired' : (timeRemaining < 24 * 60 * 60 * 1000 ? 'expiring' : 'valid');
-                const tagText = isExpired ? '❌ Hết hạn' : (timeRemaining < 24 * 60 * 60 * 1000 ? '⚠️ Sắp hết' : '✅ Hoạt động');
+                let tagText = isExpired ? '❌ Hết hạn' : (timeRemaining < 24 * 60 * 60 * 1000 ? '⚠️ Sắp hết' : '✅ Hoạt động');
+                
+                if (isAdmin && !isExpired) {
+                    tagText = '👑 ' + tagText;
+                }
 
                 const email = item.email || '---';
                 const displayKey = key.length > 30 ? key.substring(0, 25) + '...' : key;
+                const expireMinutes = item.expireMinutes || 100;
 
                 html += `
                     <div class="key-item">
                         <span class="ip">${ip}</span>
                         <span class="key" title="${key}">${displayKey}</span>
                         <span class="time">📧 ${email}</span>
+                        <span class="time">⏱ ${expireMinutes} phút</span>
                         <span class="time">${new Date(timestamp).toLocaleString('vi-VN')}</span>
-                        <span class="expire-tag ${tagClass}">${tagText}</span>
+                        <span class="expire-tag ${tagClass} ${isAdmin ? 'admin-tag' : ''}">${tagText}</span>
                         <span class="time" style="color:${isExpired ? '#ff6b6b' : '#ffc107'}">${displayTime}</span>
                     </div>
                 `;
@@ -1006,6 +1071,7 @@
                 keyDisplay.className = 'key-display empty';
                 keyEmail.textContent = '📧 ---';
                 keyExpire.textContent = '⏱ ---';
+                keyExpire.className = 'expire';
                 return;
             }
 
@@ -1017,7 +1083,7 @@
             const isExpired = timeRemaining <= 0;
             const displayTime = isExpired ? 'Hết hạn' : formatTime(timeRemaining);
             keyExpire.textContent = `⏱ ${displayTime}`;
-            keyExpire.className = `expire${isExpired ? ' urgent' : ''}`;
+            keyExpire.className = `expire${isExpired ? ' urgent' : ' admin'}`;
 
             // Copy to clipboard hint
             keyDisplay.style.cursor = 'pointer';
@@ -1054,11 +1120,12 @@
             isWhitelisted = CONFIG.ALLOWED_IPS.includes(ip);
             
             if (isWhitelisted) {
-                statusMsg.textContent = '✅ Whitelist verified';
+                statusMsg.textContent = '✅ Whitelist verified - Admin';
                 statusMsg.className = 'status-msg allowed';
-                statusBadge.textContent = '✅ Whitelist';
-                statusBadge.className = 'badge success';
+                statusBadge.textContent = '✅ Admin';
+                statusBadge.className = 'badge gold';
                 roleBadge.textContent = '👑 Admin';
+                adminInfo.style.display = 'flex';
                 blockedOverlay.classList.remove('show');
                 return true;
             } else {
@@ -1067,6 +1134,7 @@
                 statusBadge.textContent = '⛔ Restricted';
                 statusBadge.className = 'badge danger';
                 roleBadge.textContent = '🚫 No Access';
+                adminInfo.style.display = 'none';
                 blockedOverlay.classList.add('show');
                 return false;
             }
@@ -1113,7 +1181,9 @@
                 generatedKey = keyData;
                 generatedExpire = keyData.customExpire;
                 renderGeneratedKey(keyData);
-                showToast(`✅ Key "${keyData.key}" đã được tạo thành công!`, 'success');
+                
+                const expireDisplay = expireMinutes >= 1440 ? `${expireMinutes/1440} ngày` : `${expireMinutes} phút`;
+                showToast(`✅ Key "${keyData.key}" đã được tạo thành công! (${expireDisplay})`, 'success');
                 await refreshKeyList();
             } catch (e) {
                 showToast(`❌ Lỗi: ${e.message}`, 'error');
@@ -1209,9 +1279,10 @@
             // Start auto refresh
             startAutoRefresh();
 
-            log('✅ Key Manager initialized');
+            log('✅ Admin Panel initialized');
             log(`🌐 IP: ${currentIP}`);
             log(`📋 Allowed IPs: ${CONFIG.ALLOWED_IPS.join(', ')}`);
+            log('🔑 Admin privileges: Unlimited keys, no cooldown, max 90 days');
         });
 
         // Cleanup on page unload
@@ -1227,8 +1298,12 @@
             }
         });
 
-        console.log('🚀 Key Manager v2.0');
+        console.log('🚀 Admin Panel v2.0');
         console.log('📌 Chỉ whitelist IP mới được truy cập');
+        console.log('🔑 Admin Privileges:');
+        console.log('   ✅ Không giới hạn 1 key/IP');
+        console.log('   ✅ Không cooldown 99 phút');
+        console.log('   ⏱ Tối đa 90 ngày');
         console.log('💡 Ctrl+Enter để tạo key nhanh');
         console.log(`🔒 Allowed IPs: ${CONFIG.ALLOWED_IPS.join(', ')}`);
         console.log(`🌐 API URL: ${CONFIG.API_BASE}`);
