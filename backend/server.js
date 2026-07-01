@@ -24,7 +24,7 @@ const SETTINGS = {
     ALLOWED_REFERRERS: [
         'https://onthitracnghiem.com'
     ],
-    ALLOWED_DOMAIN: 'https://key-system-aurahub.onrender.com'
+    ALLOWED_DOMAIN: 'https://key-system-aurahub.onrender.com/'
 };
 
 // ================================================================
@@ -143,7 +143,8 @@ if (SERVE_HTML) {
                         request: '/api/request (GET - cần access key)',
                         stats: '/api/stats',
                         html: '/index.html',
-                        admin: '/admin.html'
+                        admin: '/admin.html',
+                        dashboard: '/dashboard'
                     },
                     timestamp: new Date().toISOString()
                 });
@@ -182,6 +183,38 @@ if (SERVE_HTML) {
         });
     }
 }
+
+// ================================================================
+// DASHBOARD - Trang thống kê chi tiết (CHỈ WHITELIST IP)
+// ================================================================
+app.get('/dashboard', (req, res) => {
+    const clientIP = req.headers['x-forwarded-for'] || 
+                     req.headers['x-real-ip'] || 
+                     req.connection.remoteAddress || 
+                     req.socket.remoteAddress || 
+                     '0.0.0.0';
+    
+    const cleanIP = clientIP.replace('::ffff:', '').replace('::1', '127.0.0.1').split(',')[0].trim();
+    
+    // Kiểm tra whitelist
+    if (!isWhitelisted(cleanIP)) {
+        if (DEBUG) console.log(`⛔ IP ${cleanIP} bị từ chối truy cập /dashboard`);
+        return res.status(403).json({
+            success: false,
+            message: 'Forbidden: Access denied. Only whitelisted IPs can access dashboard.'
+        });
+    }
+    
+    const dashboardPath = path.join(__dirname, '../frontend/dashboard.html');
+    if (fs.existsSync(dashboardPath)) {
+        res.sendFile(dashboardPath);
+    } else {
+        res.status(404).json({
+            success: false,
+            message: 'dashboard.html not found'
+        });
+    }
+});
 
 // ================================================================
 // FILE OPERATIONS
@@ -1030,12 +1063,14 @@ app.listen(PORT, () => {
     console.log(`   📁 Phục vụ HTML: ${SERVE_HTML ? 'BẬT' : 'TẮT'}`);
     console.log(`\n📡 Endpoints:`);
     console.log(`   🌐 Trang chủ: http://localhost:${PORT}/`);
+    console.log(`   🌐 Production: https://key-system-aurahub.onrender.com/`);
     console.log(`   🔒 /api/logs (WHITELIST ONLY)`);
     console.log(`   🔑 /api/access`);
     console.log(`   🔑 /api/request (hỗ trợ expire_minutes)`);
     console.log(`   📊 /api/stats`);
     console.log(`   📋 /api/keys`);
-    console.log(`   📁 /admin.html\n`);
+    console.log(`   📁 /admin.html`);
+    console.log(`   📊 /dashboard (WHITELIST ONLY)\n`);
     
     cleanExpiredLogs();
     cleanExpiredAccessKeys();
