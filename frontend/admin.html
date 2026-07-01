@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔑 Key Manager - Admin</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            min-height: 100vh;
+            padding: 30px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header .info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .header .info .badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .badge.success {
+            background: rgba(100, 255, 218, 0.15);
+            color: #64ffda;
+            border: 1px solid rgba(100, 255, 218, 0.2);
+        }
+
+        .badge.warning {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.2);
+        }
+
+        .badge.danger {
+            background: rgba(255, 107, 107, 0.15);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+
+        .badge.info {
+            background: rgba(102, 126, 234, 0.15);
+            color: #667eea;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        /* IP Bar */
+        .ip-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 25px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .ip-bar .label {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 14px;
+        }
+
+        .ip-bar .ip-value {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 16px;
+            color: #64ffda;
+        }
+
+        .ip-bar .status-msg {
+            font-size: 13px;
+        }
+
+        .ip-bar .status-msg.allowed {
+            color: #64ffda;
+        }
+
+        .ip-bar .status-msg.denied {
+            color: #ff6b6b;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            padding: 18px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.3);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .number.green {
+            color: #64ffda;
+        }
+        .stat-card .number.yellow {
+            color: #ffc107;
+        }
+        .stat-card .number.purple {
+            color: #a78bfa;
+        }
+        .stat-card .number.orange {
+            color: #fb923c;
+        }
+        .stat-card .number.red {
+            color: #ff6b6b;
+        }
+
+        /* Main Content */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card */
+        .card {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 25px;
+        }
+
+        .card .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card .card-title .icon {
+            font-size: 20px;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 14px;
+            transition: 0.3s;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: rgba(102, 126, 234, 0.4);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.15);
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.35);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: rgba(100, 255, 218, 0.15);
+            color: #64ffda;
+            border: 1px solid rgba(100, 255, 218, 0.2);
+        }
+
+        .btn-success:hover {
+            background: rgba(100, 255, 218, 0.2);
+        }
+
+        .btn-danger {
+            background: rgba(255, 107, 107, 0.12);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.15);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 107, 107, 0.2);
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
+
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Key Display */
+        .key-display {
+            padding: 18px 20px;
+            background: rgba(100, 255, 218, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 255, 218, 0.08);
+            margin-top: 10px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            color: #64ffda;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .key-display.empty {
+            color: rgba(255, 255, 255, 0.1);
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 400;
+            font-size: 14px;
+        }
+
+        .key-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.3);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .key-info .expire {
+            color: #ffc107;
+        }
+
+        .key-info .expire.urgent {
+            color: #ff6b6b;
+        }
+
+        /* Key List */
+        .key-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .key-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .key-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .key-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .key-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 13px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .key-item:last-child {
+            border-bottom: none;
+        }
+
+        .key-item .ip {
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            min-width: 100px;
+        }
+
+        .key-item .key {
+            color: #64ffda;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            font-weight: 500;
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .key-item .time {
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .key-item .expire-tag {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .expire-tag.valid {
+            background: rgba(100, 255, 218, 0.1);
+            color: #64ffda;
+        }
+
+        .expire-tag.expiring {
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+        }
+
+        .expire-tag.expired {
+            background: rgba(255, 107, 107, 0.1);
+            color: #ff6b6b;
+        }
+
+        .key-item .actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.15);
+            font-size: 14px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 14px 25px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 999;
+            animation: slideUp 0.4s ease;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .toast.success {
+            background: rgba(100, 255, 218, 0.12);
+            color: #64ffda;
+            border: 1px solid rgba(100, 255, 218, 0.15);
+        }
+
+        .toast.error {
+            background: rgba(255, 107, 107, 0.12);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.15);
+        }
+
+        .toast.info {
+            background: rgba(102, 126, 234, 0.12);
+            color: #a78bfa;
+            border: 1px solid rgba(102, 126, 234, 0.15);
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.hide {
+            animation: slideDown 0.3s ease forwards;
+        }
+
+        @keyframes slideDown {
+            to {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+        }
+
+        /* Blocked Overlay */
+        .blocked-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .blocked-overlay.show {
+            display: flex;
+        }
+
+        .blocked-overlay .icon {
+            font-size: 80px;
+            margin-bottom: 16px;
+        }
+
+        .blocked-overlay h1 {
+            color: #ff6b6b;
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .blocked-overlay p {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .blocked-overlay .ip-show {
+            color: rgba(255, 255, 255, 0.2);
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+            }
+            .header {
+                padding: 15px 18px;
+            }
+            .header h1 {
+                font-size: 18px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stat-card .number {
+                font-size: 22px;
+            }
+            .card {
+                padding: 18px;
+            }
+            .key-display {
+                font-size: 14px;
+                padding: 14px;
+            }
+            .key-item {
+                font-size: 12px;
+                padding: 10px 12px;
+            }
+            .key-item .key {
+                font-size: 11px;
+            }
+            .toast {
+                bottom: 15px;
+                right: 15px;
+                left: 15px;
+                max-width: none;
+                font-size: 13px;
+                padding: 12px 18px;
+            }
+        }
+
+        /* HWID Display */
+        .hwid-display {
+            padding: 8px 16px;
+            background: rgba(167, 139, 250, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(167, 139, 250, 0.08);
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: rgba(167, 139, 250, 0.6);
+            margin-top: 10px;
+            word-break: break-all;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BLOCKED OVERLAY -->
+    <div class="blocked-overlay" id="blockedOverlay">
+        <div class="icon">⛔</div>
+        <h1>Access Denied</h1>
+        <p>Chỉ whitelist IP mới được truy cập trang quản trị này</p>
+        <div class="ip-show" id="blockedIP">IP: ---</div>
+        <div class="ip-show" id="blockedHWID" style="margin-top:4px;font-size:12px;">HWID: ---</div>
+    </div>
+
+    <div class="container" id="app">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔑 Key Manager</h1>
+            <div class="info">
+                <span class="badge success" id="statusBadge">✅ Online</span>
+                <span class="badge info" id="roleBadge">👑 Admin</span>
+            </div>
+        </div>
+
+        <!-- IP Bar -->
+        <div class="ip-bar">
+            <div>
+                <span class="label">🌐 Your IP</span>
+                <span class="ip-value" id="ipDisplay">---</span>
+            </div>
+            <div>
+                <span class="status-msg allowed" id="statusMsg">✅ Whitelist verified</span>
+            </div>
+        </div>
+
+        <!-- HWID Display -->
+        <div class="hwid-display" id="hwidDisplay">🖥️ HWID: Đang lấy...</div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="number green" id="statTotal">0</div>
+                <div class="stat-label">📊 Total Keys</div>
+            </div>
+            <div class="stat-card">
+                <div class="number yellow" id="statActive">0</div>
+                <div class="stat-label">✅ Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="number orange" id="statExpiring">0</div>
+                <div class="stat-label">⚠️ Expiring (24h)</div>
+            </div>
+            <div class="stat-card">
+                <div class="number red" id="statExpired">0</div>
+                <div class="stat-label">❌ Expired</div>
+            </div>
+        </div>
+
+        <!-- Main -->
+        <div class="main-grid">
+            <!-- Left: Create Key -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">✨</span> Tạo Key Mới
+                </div>
+
+                <div class="form-group">
+                    <label>📝 Email</label>
+                    <input type="email" id="emailInput" placeholder="email@example.com" value="admin@onthitracnghiem.com" />
+                </div>
+
+                <div class="form-group">
+                    <label>🖥️ HWID (tùy chọn - để giới hạn 1 thiết bị)</label>
+                    <input type="text" id="hwidInput" placeholder="Nhập HWID để giới hạn thiết bị (hoặc để trống)" />
+                    <button class="btn btn-sm btn-success" id="getHwidBtn" style="margin-top:6px;">📋 Lấy HWID hiện tại</button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>⏱ Thời gian hết hạn</label>
+                        <select id="expireSelect">
+                            <option value="15">15 phút</option>
+                            <option value="30">30 phút</option>
+                            <option value="60" selected>1 giờ</option>
+                            <option value="120">2 giờ</option>
+                            <option value="360">6 giờ</option>
+                            <option value="720">12 giờ</option>
+                            <option value="1440">24 giờ</option>
+                            <option value="4320">3 ngày</option>
+                            <option value="10080">7 ngày</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>🔑 Prefix</label>
+                        <select id="prefixSelect">
+                            <option value="AuraHub">AuraHub</option>
+                            <option value="Admin">Admin</option>
+                            <option value="VIP">VIP</option>
+                            <option value="Premium">Premium</option>
+                            <option value="Custom">Custom...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="customPrefixGroup" style="display:none;">
+                    <label>✏️ Custom Prefix</label>
+                    <input type="text" id="customPrefixInput" placeholder="Nhập prefix tùy chỉnh" maxlength="20" />
+                </div>
+
+                <button class="btn btn-primary btn-block" id="createKeyBtn">🚀 Tạo Key</button>
+
+                <div style="margin-top: 18px;">
+                    <div class="key-display empty" id="keyDisplay">Chưa có key nào được tạo</div>
+                    <div class="key-info">
+                        <span id="keyEmail">📧 ---</span>
+                        <span class="expire" id="keyExpire">⏱ ---</span>
+                    </div>
+                    <div style="margin-top:6px;font-size:12px;color:rgba(255,255,255,0.15);" id="keyHwid">🖥️ HWID: Không giới hạn</div>
+                </div>
+            </div>
+
+            <!-- Right: Key List -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📋</span> Danh sách Key
+                    <span style="margin-left:auto;font-size:12px;color:rgba(255,255,255,0.2);" id="listCount">0 keys</span>
+                </div>
+
+                <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                    <button class="btn btn-sm btn-success" id="refreshListBtn">🔄 Refresh</button>
+                    <button class="btn btn-sm btn-danger" id="clearExpiredBtn">🗑️ Clear Expired</button>
+                    <button class="btn btn-sm btn-danger" id="clearAllBtn" style="border-color:rgba(255,107,107,0.3);">⚠️ Clear All</button>
+                </div>
+
+                <div class="key-list" id="keyList">
+                    <div class="empty-state">🔄 Đang tải danh sách key...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // 📌 CẤU HÌNH
+        // ================================================================
+        const CONFIG = {
+            API_BASE: 'https://api-key-manager-5y84.onrender.com', // ĐÃ CẬP NHẬT URL MỚI
+            ALLOWED_IPS: ['14.162.99.92'], // Whitelist IPs
+            ALLOWED_HWIDS: [''], // Whitelist HWIDs (để trống nếu không dùng)
+            DEBUG: true
+        };
+
+        // ================================================================
+        // STATE
+        // ================================================================
+        let currentIP = '';
+        let currentHWID = '';
+        let isWhitelisted = false;
+        let allKeys = [];
+        let generatedKey = null;
+        let generatedExpire = null;
+
+        // ================================================================
+        // DOM REFS
+        // ================================================================
+        const $ = id => document.getElementById(id);
+        const ipDisplay = $('ipDisplay');
+        const statusMsg = $('statusMsg');
+        const statusBadge = $('statusBadge');
+        const roleBadge = $('roleBadge');
+        const keyDisplay = $('keyDisplay');
+        const keyEmail = $('keyEmail');
+        const keyExpire = $('keyExpire');
+        const keyHwid = $('keyHwid');
+        const keyList = $('keyList');
+        const listCount = $('listCount');
+        const emailInput = $('emailInput');
+        const hwidInput = $('hwidInput');
+        const expireSelect = $('expireSelect');
+        const prefixSelect = $('prefixSelect');
+        const customPrefixGroup = $('customPrefixGroup');
+        const customPrefixInput = $('customPrefixInput');
+        const createKeyBtn = $('createKeyBtn');
+        const refreshListBtn = $('refreshListBtn');
+        const clearExpiredBtn = $('clearExpiredBtn');
+        const clearAllBtn = $('clearAllBtn');
+        const getHwidBtn = $('getHwidBtn');
+        const blockedOverlay = $('blockedOverlay');
+        const blockedIP = $('blockedIP');
+        const blockedHWID = $('blockedHWID');
+        const hwidDisplay = $('hwidDisplay');
+
+        const statTotal = $('statTotal');
+        const statActive = $('statActive');
+        const statExpiring = $('statExpiring');
+        const statExpired = $('statExpired');
+
+        // ================================================================
+        // 🖥️ HWID GENERATOR
+        // ================================================================
+        function generateHWID() {
+            try {
+                // Tạo HWID từ nhiều nguồn khác nhau
+                const components = [];
+                
+                // 1. User Agent
+                components.push(navigator.userAgent);
+                
+                // 2. Screen resolution
+                components.push(`${screen.width}x${screen.height}x${screen.colorDepth}`);
+                
+                // 3. Timezone
+                components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
+                
+                // 4. Platform
+                components.push(navigator.platform);
+                
+                // 5. Language
+                components.push(navigator.language);
+                
+                // 6. Hardware concurrency
+                components.push(navigator.hardwareConcurrency || 'unknown');
+                
+                // 7. Device memory
+                components.push(navigator.deviceMemory || 'unknown');
+                
+                // 8. Touch support
+                components.push('ontouchstart' in window ? 'touch' : 'no-touch');
+                
+                // 9. WebGL Vendor (nếu có)
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (gl) {
+                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                        if (debugInfo) {
+                            components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL));
+                            components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
+                        }
+                    }
+                } catch (e) {}
+                
+                // 10. Audio fingerprint (tùy chọn)
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioCtx.createOscillator();
+                    const analyser = audioCtx.createAnalyser();
+                    oscillator.connect(analyser);
+                    analyser.connect(audioCtx.destination);
+                    oscillator.start(0);
+                    oscillator.stop(0.001);
+                    const data = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(data);
+                    components.push(data.join(''));
+                    audioCtx.close();
+                } catch (e) {}
+                
+                // Tạo hash từ các components
+                const combined = components.join('|||');
+                let hash = 0;
+                for (let i = 0; i < combined.length; i++) {
+                    const char = combined.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32bit integer
+                }
+                
+                // Chuyển thành hex string
+                const hexHash = Math.abs(hash).toString(16).padStart(8, '0');
+                
+                // Thêm timestamp để tạo uniqueness
+                const timestamp = Date.now().toString(36).slice(-4);
+                
+                // Tạo HWID format: HWID-xxxxxxxx-yyyy
+                const hwid = `HWID-${hexHash}-${timestamp}`;
+                
+                return hwid;
+            } catch (e) {
+                // Fallback: tạo HWID đơn giản
+                const fallback = `HWID-${Math.random().toString(36).substring(2, 10)}`;
+                return fallback;
+            }
+        }
+
+        // ================================================================
+        // UTILITY
+        // ================================================================
+        function log(...args) {
+            if (CONFIG.DEBUG) console.log(...args);
+        }
+
+        function formatTime(ms) {
+            if (ms < 0) return 'Hết hạn';
+            const minutes = Math.floor(ms / 60000);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            if (days > 0) return `${days} ngày ${hours % 24} giờ`;
+            if (hours > 0) return `${hours} giờ ${minutes % 60} phút`;
+            if (minutes > 0) return `${minutes} phút`;
+            return 'Sắp hết hạn';
+        }
+
+        function getExpireTime(minutes) {
+            return Date.now() + (minutes * 60 * 1000);
+        }
+
+        function getTimeRemaining(expireTime) {
+            return expireTime - Date.now();
+        }
+
+        function generateKey(prefix = 'AuraHub') {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let randomStr = '';
+            for (let i = 0; i < 16; i++) {
+                randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return prefix + '-' + randomStr;
+        }
+
+        function getPrefix() {
+            const selected = prefixSelect.value;
+            if (selected === 'Custom') {
+                return customPrefixInput.value.trim() || 'Custom';
+            }
+            return selected;
+        }
+
+        // ================================================================
+        // TOAST NOTIFICATIONS
+        // ================================================================
+        function showToast(message, type = 'info', duration = 4000) {
+            const existing = document.querySelector('.toast');
+            if (existing) {
+                existing.classList.add('hide');
+                setTimeout(() => existing.remove(), 300);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // ================================================================
+        // API CALLS
+        // ================================================================
+        async function fetchIP() {
+            try {
+                const res = await fetch('https://api.ipify.org/');
+                const ip = await res.text();
+                return ip.trim();
+            } catch (e) {
+                log('Failed to get IP:', e);
+                return null;
+            }
+        }
+
+        async function fetchKeys() {
+            try {
+                const url = `${CONFIG.API_BASE}/api/keys`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (data.success) {
+                    allKeys = data.data || [];
+                    return allKeys;
+                }
+                throw new Error(data.message || 'Failed to fetch keys');
+            } catch (e) {
+                log('Fetch keys error:', e);
+                return null;
+            }
+        }
+
+        async function createKey(email, expireMinutes, prefix, hwid = null) {
+            try {
+                // Get access key first
+                const accessRes = await fetch(`${CONFIG.API_BASE}/api/access`);
+                if (!accessRes.ok) throw new Error('Failed to get access key');
+                const accessData = await accessRes.json();
+                if (!accessData.success || !accessData.data?.access_key) {
+                    throw new Error('Invalid access key response');
+                }
+                const accessKey = accessData.data.access_key;
+
+                // Build URL with parameters
+                let url = `${CONFIG.API_BASE}/api/request?access_key=${encodeURIComponent(accessKey)}&email=${encodeURIComponent(email)}`;
+                if (hwid) {
+                    url += `&hwid=${encodeURIComponent(hwid)}`;
+                }
+
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                if (data.success && data.data) {
+                    // Store with custom expire and HWID
+                    const keyData = {
+                        key: data.data.key,
+                        ip: data.data.ip,
+                        email: email,
+                        timestamp: data.data.timestamp,
+                        expireMinutes: expireMinutes,
+                        customExpire: getExpireTime(expireMinutes),
+                        prefix: prefix,
+                        hwid: hwid || null,
+                        action: 'admin_generate'
+                    };
+                    return keyData;
+                }
+                throw new Error(data.message || 'Failed to create key');
+            } catch (e) {
+                log('Create key error:', e);
+                throw e;
+            }
+        }
+
+        async function deleteAllLogs(secretKey) {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE}/api/logs`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Admin-Key': secretKey || 'default-secret-key-change-me'
+                    }
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                return data;
+            } catch (e) {
+                log('Delete logs error:', e);
+                throw e;
+            }
+        }
+
+        // ================================================================
+        // RENDER FUNCTIONS
+        // ================================================================
+        function renderKeyList(keys) {
+            if (!keys || keys.length === 0) {
+                keyList.innerHTML = `<div class="empty-state">📭 Chưa có key nào</div>`;
+                listCount.textContent = '0 keys';
+                return;
+            }
+
+            // Sort by timestamp (newest first)
+            const sorted = [...keys].sort((a, b) => 
+                new Date(b.timestamp) - new Date(a.timestamp)
+            );
+
+            let html = '';
+            let activeCount = 0;
+            let expiringCount = 0;
+            let expiredCount = 0;
+
+            sorted.forEach(item => {
+                const key = item.key || '---';
+                const ip = item.ip || '---';
+                const timestamp = item.timestamp || new Date().toISOString();
+                const hwid = item.hwid || 'Không giới hạn';
+                
+                // Check if custom expire exists
+                let expireTime;
+                let isExpired = false;
+                let timeRemaining = 0;
+
+                if (item.customExpire) {
+                    expireTime = item.customExpire;
+                    timeRemaining = getTimeRemaining(expireTime);
+                    isExpired = timeRemaining <= 0;
+                } else {
+                    // Default: use server expire (100 minutes)
+                    const logTime = new Date(timestamp).getTime();
+                    const expireMs = 100 * 60 * 1000; // 100 minutes
+                    expireTime = logTime + expireMs;
+                    timeRemaining = getTimeRemaining(expireTime);
+                    isExpired = timeRemaining <= 0;
+                }
+
+                // Stats
+                if (isExpired) {
+                    expiredCount++;
+                } else if (timeRemaining < 24 * 60 * 60 * 1000) {
+                    expiringCount++;
+                } else {
+                    activeCount++;
+                }
+
+                const displayTime = isExpired ? 'Hết hạn' : formatTime(timeRemaining);
+                const tagClass = isExpired ? 'expired' : (timeRemaining < 24 * 60 * 60 * 1000 ? 'expiring' : 'valid');
+                const tagText = isExpired ? '❌ Hết hạn' : (timeRemaining < 24 * 60 * 60 * 1000 ? '⚠️ Sắp hết' : '✅ Hoạt động');
+
+                const email = item.email || '---';
+                const displayKey = key.length > 30 ? key.substring(0, 25) + '...' : key;
+                const displayHwid = hwid.length > 20 ? hwid.substring(0, 15) + '...' : hwid;
+
+                html += `
+                    <div class="key-item">
+                        <span class="ip">${ip}</span>
+                        <span class="key" title="${key}">${displayKey}</span>
+                        <span class="time">📧 ${email}</span>
+                        <span class="time" style="color:rgba(167,139,250,0.5);font-size:10px;">🖥️ ${displayHwid}</span>
+                        <span class="time">${new Date(timestamp).toLocaleString('vi-VN')}</span>
+                        <span class="expire-tag ${tagClass}">${tagText}</span>
+                        <span class="time" style="color:${isExpired ? '#ff6b6b' : '#ffc107'}">${displayTime}</span>
+                    </div>
+                `;
+            });
+
+            keyList.innerHTML = html;
+            listCount.textContent = `${sorted.length} keys`;
+
+            // Update stats
+            statTotal.textContent = sorted.length;
+            statActive.textContent = activeCount;
+            statExpiring.textContent = expiringCount;
+            statExpired.textContent = expiredCount;
+        }
+
+        function renderGeneratedKey(keyData) {
+            if (!keyData) {
+                keyDisplay.textContent = 'Chưa có key nào được tạo';
+                keyDisplay.className = 'key-display empty';
+                keyEmail.textContent = '📧 ---';
+                keyExpire.textContent = '⏱ ---';
+                keyHwid.textContent = '🖥️ HWID: Không giới hạn';
+                return;
+            }
+
+            keyDisplay.textContent = keyData.key;
+            keyDisplay.className = 'key-display';
+            keyEmail.textContent = `📧 ${keyData.email || '---'}`;
+            
+            const timeRemaining = getTimeRemaining(keyData.customExpire);
+            const isExpired = timeRemaining <= 0;
+            const displayTime = isExpired ? 'Hết hạn' : formatTime(timeRemaining);
+            keyExpire.textContent = `⏱ ${displayTime}`;
+            keyExpire.className = `expire${isExpired ? ' urgent' : ''}`;
+            
+            const hwidText = keyData.hwid ? keyData.hwid : 'Không giới hạn';
+            keyHwid.textContent = `🖥️ HWID: ${hwidText}`;
+
+            // Copy to clipboard hint
+            keyDisplay.style.cursor = 'pointer';
+            keyDisplay.title = 'Click để copy key';
+            keyDisplay.onclick = () => {
+                navigator.clipboard.writeText(keyData.key).then(() => {
+                    showToast('📋 Đã copy key vào clipboard!', 'success');
+                }).catch(() => {
+                    // Fallback
+                    const range = document.createRange();
+                    range.selectNode(keyDisplay);
+                    window.getSelection().removeAllRanges();
+                    window.getSelection().addRange(range);
+                    document.execCommand('copy');
+                    showToast('📋 Đã copy key!', 'success');
+                });
+            };
+        }
+
+        // ================================================================
+        // MAIN FUNCTIONS
+        // ================================================================
+        async function checkWhitelist() {
+            const ip = await fetchIP();
+            if (!ip) {
+                blockedIP.textContent = 'Không thể lấy IP';
+                blockedOverlay.classList.add('show');
+                return false;
+            }
+            currentIP = ip;
+            ipDisplay.textContent = ip;
+            blockedIP.textContent = `IP của bạn: ${ip}`;
+
+            // Generate HWID
+            currentHWID = generateHWID();
+            hwidDisplay.textContent = `🖥️ HWID: ${currentHWID}`;
+            blockedHWID.textContent = `HWID: ${currentHWID}`;
+            hwidInput.value = currentHWID;
+
+            // Check whitelist
+            const ipAllowed = CONFIG.ALLOWED_IPS.includes(ip);
+            const hwidAllowed = CONFIG.ALLOWED_HWIDS.includes(currentHWID) || CONFIG.ALLOWED_HWIDS.includes('');
+            
+            isWhitelisted = ipAllowed && (hwidAllowed || CONFIG.ALLOWED_HWIDS.includes(''));
+            
+            if (isWhitelisted) {
+                statusMsg.textContent = '✅ Whitelist verified';
+                statusMsg.className = 'status-msg allowed';
+                statusBadge.textContent = '✅ Whitelist';
+                statusBadge.className = 'badge success';
+                roleBadge.textContent = '👑 Admin';
+                blockedOverlay.classList.remove('show');
+                return true;
+            } else {
+                let reason = '';
+                if (!ipAllowed) reason = 'IP không trong whitelist';
+                if (!hwidAllowed && CONFIG.ALLOWED_HWIDS.length > 0) reason += ' (HWID không khớp)';
+                statusMsg.textContent = `⛔ Access denied - ${reason}`;
+                statusMsg.className = 'status-msg denied';
+                statusBadge.textContent = '⛔ Restricted';
+                statusBadge.className = 'badge danger';
+                roleBadge.textContent = '🚫 No Access';
+                blockedOverlay.classList.add('show');
+                return false;
+            }
+        }
+
+        async function refreshKeyList() {
+            try {
+                const keys = await fetchKeys();
+                if (keys) {
+                    renderKeyList(keys);
+                } else {
+                    keyList.innerHTML = `<div class="empty-state">❌ Không thể tải danh sách key</div>`;
+                }
+            } catch (e) {
+                log('Refresh error:', e);
+                keyList.innerHTML = `<div class="empty-state">❌ Lỗi tải danh sách</div>`;
+            }
+        }
+
+        async function handleCreateKey() {
+            const email = emailInput.value.trim();
+            if (!email) {
+                showToast('⚠️ Vui lòng nhập email', 'error');
+                return;
+            }
+            if (!email.includes('@') || !email.includes('.')) {
+                showToast('⚠️ Email không hợp lệ', 'error');
+                return;
+            }
+
+            const expireMinutes = parseInt(expireSelect.value);
+            const prefix = getPrefix();
+            const hwid = hwidInput.value.trim() || null;
+            
+            if (prefixSelect.value === 'Custom' && !prefix) {
+                showToast('⚠️ Vui lòng nhập custom prefix', 'error');
+                return;
+            }
+
+            createKeyBtn.disabled = true;
+            createKeyBtn.textContent = '⏳ Đang tạo...';
+
+            try {
+                const keyData = await createKey(email, expireMinutes, prefix, hwid);
+                generatedKey = keyData;
+                generatedExpire = keyData.customExpire;
+                renderGeneratedKey(keyData);
+                
+                let msg = `✅ Key "${keyData.key}" đã được tạo thành công!`;
+                if (hwid) msg += ` (HWID: ${hwid})`;
+                showToast(msg, 'success');
+                await refreshKeyList();
+            } catch (e) {
+                showToast(`❌ Lỗi: ${e.message}`, 'error');
+            } finally {
+                createKeyBtn.disabled = false;
+                createKeyBtn.textContent = '🚀 Tạo Key';
+            }
+        }
+
+        async function handleClearExpired() {
+            if (!confirm('⚠️ Xóa tất cả key đã hết hạn?')) return;
+            try {
+                await refreshKeyList();
+                const now = Date.now();
+                const validKeys = allKeys.filter(item => {
+                    let expireTime;
+                    if (item.customExpire) {
+                        expireTime = item.customExpire;
+                    } else {
+                        const logTime = new Date(item.timestamp).getTime();
+                        expireTime = logTime + (100 * 60 * 1000);
+                    }
+                    return expireTime > now;
+                });
+                renderKeyList(validKeys);
+                showToast('🗑️ Đã xóa key hết hạn', 'info');
+            } catch (e) {
+                showToast(`❌ Lỗi: ${e.message}`, 'error');
+            }
+        }
+
+        async function handleClearAll() {
+            if (!confirm('⚠️ XÓA TẤT CẢ KEY? Hành động này không thể hoàn tác!')) return;
+            if (!confirm('Bạn có chắc chắn?')) return;
+            
+            try {
+                const secret = prompt('Nhập Admin Key để xác nhận:');
+                if (!secret) return;
+                
+                await deleteAllLogs(secret);
+                allKeys = [];
+                renderKeyList([]);
+                showToast('🗑️ Đã xóa tất cả key', 'info');
+            } catch (e) {
+                showToast(`❌ Lỗi: ${e.message}`, 'error');
+            }
+        }
+
+        // ================================================================
+        // PREFIX HANDLING
+        // ================================================================
+        prefixSelect.addEventListener('change', () => {
+            customPrefixGroup.style.display = prefixSelect.value === 'Custom' ? 'block' : 'none';
+        });
+
+        // ================================================================
+        // HWID HANDLING
+        // ================================================================
+        getHwidBtn.addEventListener('click', () => {
+            const hwid = generateHWID();
+            hwidInput.value = hwid;
+            showToast('📋 Đã lấy HWID hiện tại', 'info');
+        });
+
+        // ================================================================
+        // AUTO REFRESH
+        // ================================================================
+        let autoRefreshInterval = null;
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            autoRefreshInterval = setInterval(() => {
+                if (isWhitelisted) {
+                    refreshKeyList();
+                }
+            }, 30000);
+        }
+
+        // ================================================================
+        // INIT
+        // ================================================================
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check whitelist
+            const allowed = await checkWhitelist();
+            if (!allowed) return;
+
+            // Load initial data
+            await refreshKeyList();
+            renderGeneratedKey(null);
+
+            // Event listeners
+            createKeyBtn.addEventListener('click', handleCreateKey);
+            refreshListBtn.addEventListener('click', refreshKeyList);
+            clearExpiredBtn.addEventListener('click', handleClearExpired);
+            clearAllBtn.addEventListener('click', handleClearAll);
+
+            // Enter key shortcut for create
+            emailInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleCreateKey();
+            });
+            hwidInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleCreateKey();
+            });
+
+            // Start auto refresh
+            startAutoRefresh();
+
+            log('✅ Key Manager initialized');
+            log(`🌐 IP: ${currentIP}`);
+            log(`🖥️ HWID: ${currentHWID}`);
+            log(`📋 Allowed IPs: ${CONFIG.ALLOWED_IPS.join(', ')}`);
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        });
+
+        // Keyboard shortcut: Ctrl+Enter to create
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (isWhitelisted) handleCreateKey();
+            }
+        });
+
+        console.log('🚀 Key Manager v2.0');
+        console.log('📌 Chỉ whitelist IP mới được truy cập');
+        console.log('🖥️ HWID được tạo tự động dựa trên thông tin thiết bị');
+        console.log('💡 Ctrl+Enter để tạo key nhanh');
+        console.log(`🔒 Allowed IPs: ${CONFIG.ALLOWED_IPS.join(', ')}`);
+        console.log(`🌐 API URL: ${CONFIG.API_BASE}`);
+    </script>
+
+</body>
+</html>
