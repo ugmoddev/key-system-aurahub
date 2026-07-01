@@ -13,7 +13,7 @@ require('dotenv').config();
 // ================================================================
 const SETTINGS = {
     EXPIRE_TIME_MINUTES: 100,
-    WHITELIST_IPS: ['14.162.99.92'],
+    WHITELIST_IPS: ['14.162.99.92', '94.74.110.245'],
     KEY_PREFIX: 'AuraHub',
     ACCESS_KEY_PREFIX: 'AuraHub-Access',
     MAX_LOGS: null,
@@ -132,6 +132,7 @@ if (SERVE_HTML) {
                         max_logs: MAX_LOGS || 'unlimited',
                         one_key_per_ip: ONE_KEY_PER_IP,
                         key_format: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx`,
+                        admin_key_format: `${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (dài hơn)`,
                         access_key_format: `${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`
                     },
                     endpoints: {
@@ -168,6 +169,7 @@ if (SERVE_HTML) {
                     max_logs: MAX_LOGS || 'unlimited',
                     one_key_per_ip: ONE_KEY_PER_IP,
                     key_format: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx`,
+                    admin_key_format: `${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (dài hơn)`,
                     access_key_format: `${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`
                 },
                 endpoints: {
@@ -255,8 +257,14 @@ app.get('/howtouse', (req, res) => {
                     '🖥️ Browser fingerprint - mỗi browser 1 key / 99 phút',
                     '⏱ Custom expire time (admin: tối đa 90 ngày, user: tối đa 7 ngày)',
                     '📊 Dashboard thống kê chi tiết',
-                    '🔑 Tạo key tự động với access key'
+                    '🔑 Tạo key tự động với access key',
+                    '🔑 Admin tạo key dài hơn (60-70 ký tự)'
                 ]
+            },
+            key_formats: {
+                user_key: 'AuraHub-xxxxxxxxxxxxxxxx (24 ký tự)',
+                admin_key: 'AuraHub-xxxx!xxxx@xxxx#xxxx$xxxx%xxxx^xxxx&xxxx*xxxx-xxxx-xxxx (60-70 ký tự)',
+                access_key: 'AuraHub-Access-[80 ký tự hỗn hợp + timestamp]'
             },
             endpoints: {
                 health: {
@@ -316,7 +324,7 @@ app.get('/howtouse', (req, res) => {
                 admin: {
                     method: 'GET',
                     url: '/admin.html',
-                    description: 'Trang quản trị (CHỈ WHITELIST IP) - Admin có thể tạo key lên đến 90 ngày',
+                    description: 'Trang quản trị (CHỈ WHITELIST IP) - Admin có thể tạo key dài hơn và lên đến 90 ngày',
                     example: 'https://key-system-aurahub.onrender.com/admin.html'
                 },
                 howtouse: {
@@ -352,6 +360,7 @@ app.get('/howtouse', (req, res) => {
                 unlimited_keys: 'Admin KHÔNG bị giới hạn 1 key/IP',
                 no_browser_cooldown: 'Admin KHÔNG bị giới hạn browser cooldown 99 phút',
                 max_expire: 'Admin có thể tạo key lên đến 90 ngày',
+                long_keys: 'Admin tạo key dài hơn (60-70 ký tự) so với user (24 ký tự)',
                 access: 'Admin có quyền truy cập /admin.html, /dashboard, /howtouse, /api/logs, /api/keys'
             },
             security: {
@@ -422,6 +431,7 @@ app.get('/api/check-browser', (req, res) => {
                 success: true,
                 hasKey: true,
                 key: browserLog.key,
+                keyType: browserLog.keyType || 'normal',
                 expires_in: `${minutesRemaining} phút ${secondsRemaining} giây`,
                 expires_at: new Date(expireTime).toISOString(),
                 remaining_minutes: minutesRemaining,
@@ -557,7 +567,7 @@ function findKeyByIP(ip) {
 }
 
 // ================================================================
-// HÀM TẠO KEY
+// HÀM TẠO KEY (USER - NGẮN)
 // ================================================================
 function generateKey(prefix = KEY_PREFIX) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -566,6 +576,32 @@ function generateKey(prefix = KEY_PREFIX) {
         randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return prefix + '-' + randomStr;
+}
+
+// ================================================================
+// HÀM TẠO KEY DÀI CHO ADMIN
+// ================================================================
+function generateAdminKey(prefix = KEY_PREFIX) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const specials = '!@#$%^&*()_+-=';
+    
+    // Tạo 40 ký tự ngẫu nhiên với ký tự đặc biệt xen kẽ
+    let randomStr = '';
+    for (let i = 0; i < 40; i++) {
+        if (i % 4 === 0 && i > 0) {
+            randomStr += specials.charAt(Math.floor(Math.random() * specials.length));
+        } else if (i % 7 === 0) {
+            randomStr += chars.charAt(Math.floor(Math.random() * chars.length)).toUpperCase();
+        } else {
+            randomStr += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+    }
+    
+    // Thêm timestamp và random suffix để tăng độ dài và uniqueness
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const randomSuffix = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    return prefix + '-' + randomStr + timestamp + randomSuffix;
 }
 
 // ================================================================
@@ -615,7 +651,8 @@ app.get('/api/health', (req, res) => {
         config: {
             expire_time: `${EXPIRE_TIME/60000} minutes`,
             one_key_per_ip: ONE_KEY_PER_IP,
-            key_format: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx`,
+            key_format: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx (user)`,
+            admin_key_format: `${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (admin - dài hơn)`,
             access_key_format: `${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`,
             max_logs: MAX_LOGS || 'unlimited',
             whitelist_ips: WHITELIST_IPS,
@@ -629,7 +666,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ================================================================
-// API LOGS - CHỈ WHITELIST IP (ĐÃ SỬA LỖI HIỂN THỊ THỜI GIAN)
+// API LOGS - CHỈ WHITELIST IP
 // ================================================================
 app.get('/api/logs', (req, res) => {
     const clientIP = req.headers['x-forwarded-for'] || 
@@ -655,25 +692,19 @@ app.get('/api/logs', (req, res) => {
     const now = Date.now();
     
     const sanitizedLogs = logs.slice(0, limit).map(log => {
-        // ============================================================
-        // 🔥 QUAN TRỌNG: LẤY THỜI GIAN HẾT HẠN TỪ CUSTOM EXPIRE
-        // ============================================================
         let expireTime;
         let expireMinutes;
         
-        // Ưu tiên sử dụng customExpire nếu có trong log
         if (log.customExpire) {
             expireTime = log.customExpire;
             expireMinutes = log.expireMinutes || 100;
             if (DEBUG) console.log(`✅ Key ${log.key} dùng customExpire: ${expireMinutes} phút`);
         } else {
-            // Fallback về mặc định nếu không có customExpire
             const logTime = new Date(log.timestamp).getTime();
             expireTime = logTime + EXPIRE_TIME;
             expireMinutes = SETTINGS.EXPIRE_TIME_MINUTES;
             if (DEBUG) console.log(`⚠️ Key ${log.key} dùng default: ${expireMinutes} phút`);
         }
-        // ============================================================
         
         const timeRemaining = expireTime - now;
         const minutesRemaining = Math.floor(timeRemaining / 60000);
@@ -698,6 +729,7 @@ app.get('/api/logs', (req, res) => {
             email: log.email || 'guest@example.com',
             action: log.action,
             key: log.key,
+            keyType: log.keyType || 'normal',
             timestamp: log.timestamp,
             method: log.method || 'GET',
             source: log.source || 'browser',
@@ -721,7 +753,12 @@ app.get('/api/logs', (req, res) => {
         max_expire_days_admin: 90,
         max_expire_days_user: 7,
         browser_cooldown: '99 phút (chỉ cho user)',
-        note: `Admin có thể tạo key lên đến 90 ngày, user tối đa 7 ngày`
+        key_formats: {
+            user: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx (24 ký tự)`,
+            admin: `${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (60-70 ký tự)`,
+            access: `${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`
+        },
+        note: `Admin tạo key dài hơn (60-70 ký tự), user tạo key ngắn (24 ký tự)`
     });
 });
 
@@ -751,6 +788,7 @@ app.get('/api/keys', (req, res) => {
             ipKeyMap[log.ip] = {
                 ip: log.ip,
                 key: log.key,
+                keyType: log.keyType || 'normal',
                 timestamp: log.timestamp,
                 email: log.email || 'guest@example.com',
                 action: log.action,
@@ -777,6 +815,10 @@ app.get('/api/keys', (req, res) => {
         max_expire_days_admin: 90,
         max_expire_days_user: 7,
         browser_cooldown: '99 phút (chỉ cho user)',
+        key_formats: {
+            user: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx (24 ký tự)`,
+            admin: `${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (60-70 ký tự)`
+        },
         data: ipKeys
     });
 });
@@ -868,7 +910,6 @@ app.get('/api/request', (req, res) => {
     // ===== LẤY CUSTOM EXPIRE TIME TỪ REQUEST =====
     let customExpireMinutes = parseInt(req.query.expire_minutes) || SETTINGS.EXPIRE_TIME_MINUTES;
     
-    // Admin: tối đa 90 ngày (129600 phút), User: tối đa 7 ngày (10080 phút)
     if (isAdmin) {
         if (customExpireMinutes > 129600) customExpireMinutes = 129600;
     } else {
@@ -880,7 +921,7 @@ app.get('/api/request', (req, res) => {
     // ===== LẤY BROWSER ID =====
     const browserId = req.query.browser_id || req.headers['x-browser-id'] || null;
     
-    // ===== KIỂM TRA ONE_KEY_PER_IP - CHỈ CHO USER (KHÔNG CHO ADMIN) =====
+    // ===== KIỂM TRA ONE_KEY_PER_IP - CHỈ CHO USER =====
     if (ONE_KEY_PER_IP && !isAdmin) {
         const existingLog = findKeyByIP(cleanIP);
         if (existingLog) {
@@ -911,7 +952,7 @@ app.get('/api/request', (req, res) => {
         }
     }
     
-    // ===== KIỂM TRA BROWSER COOLDOWN - CHỈ CHO USER (KHÔNG CHO ADMIN) =====
+    // ===== KIỂM TRA BROWSER COOLDOWN - CHỈ CHO USER =====
     if (!isAdmin && browserId) {
         const logs = readLogs();
         const now = Date.now();
@@ -951,8 +992,8 @@ app.get('/api/request', (req, res) => {
         }
     }
     
-    // ===== TẠO KEY MỚI =====
-    const newKey = generateKey();
+    // ===== TẠO KEY MỚI (DÀI CHO ADMIN, NGẮN CHO USER) =====
+    const newKey = isAdmin ? generateAdminKey() : generateKey();
     const timestamp = new Date().toISOString();
     const email = req.query.email || 'guest@example.com';
     const hwid = req.query.hwid || null;
@@ -966,6 +1007,7 @@ app.get('/api/request', (req, res) => {
         browserId: browserId,
         action: isAdmin ? 'admin_generate' : 'auto_generate',
         key: newKey,
+        keyType: isAdmin ? 'admin' : 'normal',
         timestamp: timestamp,
         userAgent: req.headers['user-agent'] || 'Unknown',
         method: 'GET',
@@ -980,21 +1022,23 @@ app.get('/api/request', (req, res) => {
     logs.unshift(logEntry);
     writeLogs(logs);
     
-    if (DEBUG) console.log(`✅ Tạo key mới cho IP ${cleanIP}: ${newKey} (expire: ${customExpireMinutes} phút, admin: ${isAdmin})`);
+    if (DEBUG) console.log(`✅ Tạo key mới cho IP ${cleanIP}: ${newKey} (expire: ${customExpireMinutes} phút, admin: ${isAdmin}, type: ${isAdmin ? 'admin' : 'normal'})`);
     
     const responseData = {
         ip: cleanIP,
         key: newKey,
+        keyType: isAdmin ? 'admin' : 'normal',
         email: email,
         timestamp: timestamp,
         expire_after: `${customExpireMinutes} minutes`,
         expire_minutes: customExpireMinutes,
         note: isAdmin 
-            ? `🔑 Admin: Key có hiệu lực ${customExpireMinutes} phút (${Math.floor(customExpireMinutes/60)} giờ) - KHÔNG giới hạn 1 key/IP` 
+            ? `🔑 Admin: Key dài (${newKey.length} ký tự) - có hiệu lực ${customExpireMinutes} phút - KHÔNG giới hạn 1 key/IP` 
             : `Key sẽ tự động xóa sau ${customExpireMinutes} phút (${Math.floor(customExpireMinutes/60)} giờ)`,
         access_key_used: accessKey.substring(0, 20) + '...',
         browser_id: browserId,
-        is_admin: isAdmin
+        is_admin: isAdmin,
+        key_length: newKey.length
     };
     
     if (hwid) {
@@ -1143,7 +1187,8 @@ app.post('/api/request', (req, res) => {
         }
     }
     
-    const newKey = generateKey();
+    // ===== TẠO KEY MỚI (DÀI CHO ADMIN, NGẮN CHO USER) =====
+    const newKey = isAdmin ? generateAdminKey() : generateKey();
     const timestamp = new Date().toISOString();
     const userEmail = email || 'api_request@example.com';
     
@@ -1155,6 +1200,7 @@ app.post('/api/request', (req, res) => {
         browserId: browserId,
         action: action || (isAdmin ? 'admin_generate' : 'api_generate'),
         key: newKey,
+        keyType: isAdmin ? 'admin' : 'normal',
         timestamp: timestamp,
         userAgent: req.headers['user-agent'] || 'API-Client',
         method: 'POST',
@@ -1169,18 +1215,20 @@ app.post('/api/request', (req, res) => {
     logs.unshift(logEntry);
     writeLogs(logs);
     
-    if (DEBUG) console.log(`📡 API Request: ${cleanIP} | ${userEmail} | ${newKey} (expire: ${customExpireMinutes} phút, admin: ${isAdmin})`);
+    if (DEBUG) console.log(`📡 API Request: ${cleanIP} | ${userEmail} | ${newKey} (expire: ${customExpireMinutes} phút, admin: ${isAdmin}, type: ${isAdmin ? 'admin' : 'normal'})`);
     
     const responseData = {
         ip: cleanIP,
         key: newKey,
+        keyType: isAdmin ? 'admin' : 'normal',
         email: userEmail,
         timestamp: timestamp,
         expire_after: `${customExpireMinutes} minutes`,
         expire_minutes: customExpireMinutes,
         source: isAdmin ? 'admin' : 'api',
         browser_id: browserId,
-        is_admin: isAdmin
+        is_admin: isAdmin,
+        key_length: newKey.length
     };
     
     if (hwid) {
@@ -1189,7 +1237,7 @@ app.post('/api/request', (req, res) => {
     
     if (isAdmin) {
         responseData.whitelisted = true;
-        responseData.note = `🔑 Admin: Key có hiệu lực ${customExpireMinutes} phút - KHÔNG giới hạn 1 key/IP`;
+        responseData.note = `🔑 Admin: Key dài (${newKey.length} ký tự) - có hiệu lực ${customExpireMinutes} phút - KHÔNG giới hạn 1 key/IP`;
         responseData.max_expire_days = 90;
     } else {
         responseData.max_expire_days = 7;
@@ -1244,7 +1292,8 @@ app.post('/api/external', (req, res) => {
     
     const browserId = browser_id || null;
     
-    const newKey = generateKey();
+    // ===== TẠO KEY MỚI (DÀI CHO ADMIN, NGẮN CHO USER) =====
+    const newKey = isAdmin ? generateAdminKey() : generateKey();
     const timestamp = new Date().toISOString();
     const userEmail = email || 'external_request@example.com';
     
@@ -1255,6 +1304,7 @@ app.post('/api/external', (req, res) => {
         browserId: browserId,
         action: action || (isAdmin ? 'admin_external' : 'external_generate'),
         key: newKey,
+        keyType: isAdmin ? 'admin' : 'normal',
         timestamp: timestamp,
         userAgent: req.headers['user-agent'] || 'External-Client',
         method: 'POST',
@@ -1270,23 +1320,25 @@ app.post('/api/external', (req, res) => {
     logs.unshift(logEntry);
     writeLogs(logs);
     
-    if (DEBUG) console.log(`🔗 External Request: ${cleanIP} | ${userEmail} | ${newKey} (expire: ${customExpireMinutes} phút, admin: ${isAdmin})`);
+    if (DEBUG) console.log(`🔗 External Request: ${cleanIP} | ${userEmail} | ${newKey} (expire: ${customExpireMinutes} phút, admin: ${isAdmin}, type: ${isAdmin ? 'admin' : 'normal'})`);
     
     const responseData = {
         ip: cleanIP,
         key: newKey,
+        keyType: isAdmin ? 'admin' : 'normal',
         email: userEmail,
         timestamp: timestamp,
         expire_after: `${customExpireMinutes} minutes`,
         expire_minutes: customExpireMinutes,
         source: isAdmin ? 'admin' : 'external',
         browser_id: browserId,
-        is_admin: isAdmin
+        is_admin: isAdmin,
+        key_length: newKey.length
     };
     
     if (isAdmin) {
         responseData.whitelisted = true;
-        responseData.note = `🔑 Admin: Key có hiệu lực ${customExpireMinutes} phút - KHÔNG giới hạn 1 key/IP`;
+        responseData.note = `🔑 Admin: Key dài (${newKey.length} ký tự) - có hiệu lực ${customExpireMinutes} phút - KHÔNG giới hạn 1 key/IP`;
         responseData.max_expire_days = 90;
     } else {
         responseData.max_expire_days = 7;
@@ -1309,12 +1361,16 @@ app.get('/api/stats', (req, res) => {
     
     const uniqueBrowsers = new Set();
     let adminCount = 0;
+    let adminKeyCount = 0;
     logs.forEach(log => {
         if (log.browserId) {
             uniqueBrowsers.add(log.browserId);
         }
         if (log.isAdmin || isWhitelisted(log.ip)) {
             adminCount++;
+        }
+        if (log.keyType === 'admin') {
+            adminKeyCount++;
         }
     });
     
@@ -1323,6 +1379,7 @@ app.get('/api/stats', (req, res) => {
         uniqueIPs: [...new Set(logs.map(l => l.ip))].length,
         uniqueBrowsers: uniqueBrowsers.size,
         adminRequests: adminCount,
+        adminKeys: adminKeyCount,
         actions: logs.reduce((acc, log) => {
             acc[log.action] = (acc[log.action] || 0) + 1;
             return acc;
@@ -1346,6 +1403,10 @@ app.get('/api/stats', (req, res) => {
         max_expire_days_admin: 90,
         max_expire_days_user: 7,
         browser_cooldown: '99 phút (chỉ cho user)',
+        key_formats: {
+            user: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx (24 ký tự)`,
+            admin: `${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (60-70 ký tự)`
+        },
         one_key_per_ip: ONE_KEY_PER_IP,
         key_format: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx`,
         access_key_format: `${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`,
@@ -1442,12 +1503,13 @@ app.listen(PORT, () => {
     console.log(`   ⏰ Thời gian hết hạn mặc định: ${EXPIRE_TIME/60000} phút`);
     console.log(`   ⏰ Admin: tối đa 90 ngày (129600 phút)`);
     console.log(`   ⏰ User: tối đa 7 ngày (10080 phút)`);
+    console.log(`   🔑 User key: ${KEY_PREFIX}-xxxxxxxxxxxxxxxx (24 ký tự)`);
+    console.log(`   🔑 Admin key: ${KEY_PREFIX}-[40 ký tự hỗn hợp + timestamp] (60-70 ký tự)`);
+    console.log(`   🔑 Access key: ${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`);
     console.log(`   🔑 Giới hạn 1 key/IP: ${ONE_KEY_PER_IP ? 'BẬT (chỉ cho user)' : 'TẮT'}`);
     console.log(`   🖥️ Browser cooldown: 99 phút (chỉ cho user)`);
     console.log(`   🌟 Whitelist IP: ${WHITELIST_IPS.join(', ') || 'Không có'}`);
     console.log(`   📊 Giới hạn logs: ${MAX_LOGS || 'Không giới hạn'}`);
-    console.log(`   🔑 Prefix key: ${KEY_PREFIX}`);
-    console.log(`   🔑 Prefix access key: ${ACCESS_KEY_PREFIX}`);
     console.log(`   🔒 /api/logs: CHỈ WHITELIST IP`);
     console.log(`   🌐 Allowed domain: ${ALLOWED_DOMAIN}`);
     console.log(`   📁 Phục vụ HTML: ${SERVE_HTML ? 'BẬT' : 'TẮT'}`);
@@ -1460,7 +1522,7 @@ app.listen(PORT, () => {
     console.log(`   🖥️ /api/check-browser (kiểm tra browser đã có key)`);
     console.log(`   📊 /api/stats`);
     console.log(`   📋 /api/keys`);
-    console.log(`   📁 /admin.html (WHITELIST ONLY - Admin có thể tạo key 90 ngày)`);
+    console.log(`   📁 /admin.html (WHITELIST ONLY - Admin tạo key dài hơn, 90 ngày)`);
     console.log(`   📊 /dashboard (WHITELIST ONLY)`);
     console.log(`   📖 /howtouse (WHITELIST ONLY - JSON)\n`);
     
