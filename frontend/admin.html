@@ -444,11 +444,6 @@
             color: #ff6b6b;
         }
 
-        .key-item .actions {
-            display: flex;
-            gap: 6px;
-        }
-
         .empty-state {
             text-align: center;
             padding: 30px 20px;
@@ -557,20 +552,6 @@
             margin-top: 8px;
         }
 
-        .loading-dots::after {
-            content: '';
-            animation: dots 1.5s steps(4, end) infinite;
-        }
-
-        @keyframes dots {
-            0% { content: ''; }
-            25% { content: '.'; }
-            50% { content: '..'; }
-            75% { content: '...'; }
-            100% { content: ''; }
-        }
-
-        /* Responsive */
         @media (max-width: 600px) {
             body {
                 padding: 15px;
@@ -610,20 +591,6 @@
                 padding: 12px 18px;
             }
         }
-
-        /* HWID Display */
-        .hwid-display {
-            padding: 8px 16px;
-            background: rgba(167, 139, 250, 0.05);
-            border-radius: 8px;
-            border: 1px solid rgba(167, 139, 250, 0.08);
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: rgba(167, 139, 250, 0.6);
-            margin-top: 10px;
-            word-break: break-all;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
@@ -634,7 +601,6 @@
         <h1>Access Denied</h1>
         <p>Chỉ whitelist IP mới được truy cập trang quản trị này</p>
         <div class="ip-show" id="blockedIP">IP: ---</div>
-        <div class="ip-show" id="blockedHWID" style="margin-top:4px;font-size:12px;">HWID: ---</div>
     </div>
 
     <div class="container" id="app">
@@ -657,9 +623,6 @@
                 <span class="status-msg allowed" id="statusMsg">✅ Whitelist verified</span>
             </div>
         </div>
-
-        <!-- HWID Display -->
-        <div class="hwid-display" id="hwidDisplay">🖥️ HWID: Đang lấy...</div>
 
         <!-- Stats -->
         <div class="stats-grid" id="statsGrid">
@@ -692,12 +655,6 @@
                 <div class="form-group">
                     <label>📝 Email</label>
                     <input type="email" id="emailInput" placeholder="email@example.com" value="admin@onthitracnghiem.com" />
-                </div>
-
-                <div class="form-group">
-                    <label>🖥️ HWID (tùy chọn - để giới hạn 1 thiết bị)</label>
-                    <input type="text" id="hwidInput" placeholder="Nhập HWID để giới hạn thiết bị (hoặc để trống)" />
-                    <button class="btn btn-sm btn-success" id="getHwidBtn" style="margin-top:6px;">📋 Lấy HWID hiện tại</button>
                 </div>
 
                 <div class="form-row">
@@ -740,7 +697,6 @@
                         <span id="keyEmail">📧 ---</span>
                         <span class="expire" id="keyExpire">⏱ ---</span>
                     </div>
-                    <div style="margin-top:6px;font-size:12px;color:rgba(255,255,255,0.15);" id="keyHwid">🖥️ HWID: Không giới hạn</div>
                 </div>
             </div>
 
@@ -769,9 +725,8 @@
         // 📌 CẤU HÌNH
         // ================================================================
         const CONFIG = {
-            API_BASE: 'https://key-system-aurahub.onrender.com', // ĐÃ CẬP NHẬT URL MỚI
-            ALLOWED_IPS: ['14.162.99.92'], // Whitelist IPs
-            ALLOWED_HWIDS: [''], // Whitelist HWIDs (để trống nếu không dùng)
+            API_BASE: 'https://api-key-manager-5y84.onrender.com', // URL backend
+            ALLOWED_IPS: ['14.162.99.92'], // Whitelist IPs - Thêm IP của bạn vào đây
             DEBUG: true
         };
 
@@ -779,7 +734,6 @@
         // STATE
         // ================================================================
         let currentIP = '';
-        let currentHWID = '';
         let isWhitelisted = false;
         let allKeys = [];
         let generatedKey = null;
@@ -796,11 +750,9 @@
         const keyDisplay = $('keyDisplay');
         const keyEmail = $('keyEmail');
         const keyExpire = $('keyExpire');
-        const keyHwid = $('keyHwid');
         const keyList = $('keyList');
         const listCount = $('listCount');
         const emailInput = $('emailInput');
-        const hwidInput = $('hwidInput');
         const expireSelect = $('expireSelect');
         const prefixSelect = $('prefixSelect');
         const customPrefixGroup = $('customPrefixGroup');
@@ -809,102 +761,13 @@
         const refreshListBtn = $('refreshListBtn');
         const clearExpiredBtn = $('clearExpiredBtn');
         const clearAllBtn = $('clearAllBtn');
-        const getHwidBtn = $('getHwidBtn');
         const blockedOverlay = $('blockedOverlay');
         const blockedIP = $('blockedIP');
-        const blockedHWID = $('blockedHWID');
-        const hwidDisplay = $('hwidDisplay');
 
         const statTotal = $('statTotal');
         const statActive = $('statActive');
         const statExpiring = $('statExpiring');
         const statExpired = $('statExpired');
-
-        // ================================================================
-        // 🖥️ HWID GENERATOR
-        // ================================================================
-        function generateHWID() {
-            try {
-                // Tạo HWID từ nhiều nguồn khác nhau
-                const components = [];
-                
-                // 1. User Agent
-                components.push(navigator.userAgent);
-                
-                // 2. Screen resolution
-                components.push(`${screen.width}x${screen.height}x${screen.colorDepth}`);
-                
-                // 3. Timezone
-                components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
-                
-                // 4. Platform
-                components.push(navigator.platform);
-                
-                // 5. Language
-                components.push(navigator.language);
-                
-                // 6. Hardware concurrency
-                components.push(navigator.hardwareConcurrency || 'unknown');
-                
-                // 7. Device memory
-                components.push(navigator.deviceMemory || 'unknown');
-                
-                // 8. Touch support
-                components.push('ontouchstart' in window ? 'touch' : 'no-touch');
-                
-                // 9. WebGL Vendor (nếu có)
-                try {
-                    const canvas = document.createElement('canvas');
-                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                    if (gl) {
-                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                        if (debugInfo) {
-                            components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL));
-                            components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
-                        }
-                    }
-                } catch (e) {}
-                
-                // 10. Audio fingerprint (tùy chọn)
-                try {
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioCtx.createOscillator();
-                    const analyser = audioCtx.createAnalyser();
-                    oscillator.connect(analyser);
-                    analyser.connect(audioCtx.destination);
-                    oscillator.start(0);
-                    oscillator.stop(0.001);
-                    const data = new Uint8Array(analyser.frequencyBinCount);
-                    analyser.getByteFrequencyData(data);
-                    components.push(data.join(''));
-                    audioCtx.close();
-                } catch (e) {}
-                
-                // Tạo hash từ các components
-                const combined = components.join('|||');
-                let hash = 0;
-                for (let i = 0; i < combined.length; i++) {
-                    const char = combined.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash; // Convert to 32bit integer
-                }
-                
-                // Chuyển thành hex string
-                const hexHash = Math.abs(hash).toString(16).padStart(8, '0');
-                
-                // Thêm timestamp để tạo uniqueness
-                const timestamp = Date.now().toString(36).slice(-4);
-                
-                // Tạo HWID format: HWID-xxxxxxxx-yyyy
-                const hwid = `HWID-${hexHash}-${timestamp}`;
-                
-                return hwid;
-            } catch (e) {
-                // Fallback: tạo HWID đơn giản
-                const fallback = `HWID-${Math.random().toString(36).substring(2, 10)}`;
-                return fallback;
-            }
-        }
 
         // ================================================================
         // UTILITY
@@ -1001,7 +864,7 @@
             }
         }
 
-        async function createKey(email, expireMinutes, prefix, hwid = null) {
+        async function createKey(email, expireMinutes, prefix) {
             try {
                 // Get access key first
                 const accessRes = await fetch(`${CONFIG.API_BASE}/api/access`);
@@ -1012,18 +875,14 @@
                 }
                 const accessKey = accessData.data.access_key;
 
-                // Build URL with parameters
-                let url = `${CONFIG.API_BASE}/api/request?access_key=${encodeURIComponent(accessKey)}&email=${encodeURIComponent(email)}`;
-                if (hwid) {
-                    url += `&hwid=${encodeURIComponent(hwid)}`;
-                }
-
+                // Then get main key
+                const url = `${CONFIG.API_BASE}/api/request?access_key=${encodeURIComponent(accessKey)}&email=${encodeURIComponent(email)}`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
 
                 if (data.success && data.data) {
-                    // Store with custom expire and HWID
+                    // Store with custom expire
                     const keyData = {
                         key: data.data.key,
                         ip: data.data.ip,
@@ -1032,7 +891,6 @@
                         expireMinutes: expireMinutes,
                         customExpire: getExpireTime(expireMinutes),
                         prefix: prefix,
-                        hwid: hwid || null,
                         action: 'admin_generate'
                     };
                     return keyData;
@@ -1085,7 +943,6 @@
                 const key = item.key || '---';
                 const ip = item.ip || '---';
                 const timestamp = item.timestamp || new Date().toISOString();
-                const hwid = item.hwid || 'Không giới hạn';
                 
                 // Check if custom expire exists
                 let expireTime;
@@ -1120,14 +977,12 @@
 
                 const email = item.email || '---';
                 const displayKey = key.length > 30 ? key.substring(0, 25) + '...' : key;
-                const displayHwid = hwid.length > 20 ? hwid.substring(0, 15) + '...' : hwid;
 
                 html += `
                     <div class="key-item">
                         <span class="ip">${ip}</span>
                         <span class="key" title="${key}">${displayKey}</span>
                         <span class="time">📧 ${email}</span>
-                        <span class="time" style="color:rgba(167,139,250,0.5);font-size:10px;">🖥️ ${displayHwid}</span>
                         <span class="time">${new Date(timestamp).toLocaleString('vi-VN')}</span>
                         <span class="expire-tag ${tagClass}">${tagText}</span>
                         <span class="time" style="color:${isExpired ? '#ff6b6b' : '#ffc107'}">${displayTime}</span>
@@ -1151,7 +1006,6 @@
                 keyDisplay.className = 'key-display empty';
                 keyEmail.textContent = '📧 ---';
                 keyExpire.textContent = '⏱ ---';
-                keyHwid.textContent = '🖥️ HWID: Không giới hạn';
                 return;
             }
 
@@ -1164,9 +1018,6 @@
             const displayTime = isExpired ? 'Hết hạn' : formatTime(timeRemaining);
             keyExpire.textContent = `⏱ ${displayTime}`;
             keyExpire.className = `expire${isExpired ? ' urgent' : ''}`;
-            
-            const hwidText = keyData.hwid ? keyData.hwid : 'Không giới hạn';
-            keyHwid.textContent = `🖥️ HWID: ${hwidText}`;
 
             // Copy to clipboard hint
             keyDisplay.style.cursor = 'pointer';
@@ -1200,17 +1051,7 @@
             ipDisplay.textContent = ip;
             blockedIP.textContent = `IP của bạn: ${ip}`;
 
-            // Generate HWID
-            currentHWID = generateHWID();
-            hwidDisplay.textContent = `🖥️ HWID: ${currentHWID}`;
-            blockedHWID.textContent = `HWID: ${currentHWID}`;
-            hwidInput.value = currentHWID;
-
-            // Check whitelist
-            const ipAllowed = CONFIG.ALLOWED_IPS.includes(ip);
-            const hwidAllowed = CONFIG.ALLOWED_HWIDS.includes(currentHWID) || CONFIG.ALLOWED_HWIDS.includes('');
-            
-            isWhitelisted = ipAllowed && (hwidAllowed || CONFIG.ALLOWED_HWIDS.includes(''));
+            isWhitelisted = CONFIG.ALLOWED_IPS.includes(ip);
             
             if (isWhitelisted) {
                 statusMsg.textContent = '✅ Whitelist verified';
@@ -1221,10 +1062,7 @@
                 blockedOverlay.classList.remove('show');
                 return true;
             } else {
-                let reason = '';
-                if (!ipAllowed) reason = 'IP không trong whitelist';
-                if (!hwidAllowed && CONFIG.ALLOWED_HWIDS.length > 0) reason += ' (HWID không khớp)';
-                statusMsg.textContent = `⛔ Access denied - ${reason}`;
+                statusMsg.textContent = '⛔ Access denied - Not in whitelist';
                 statusMsg.className = 'status-msg denied';
                 statusBadge.textContent = '⛔ Restricted';
                 statusBadge.className = 'badge danger';
@@ -1261,7 +1099,6 @@
 
             const expireMinutes = parseInt(expireSelect.value);
             const prefix = getPrefix();
-            const hwid = hwidInput.value.trim() || null;
             
             if (prefixSelect.value === 'Custom' && !prefix) {
                 showToast('⚠️ Vui lòng nhập custom prefix', 'error');
@@ -1272,14 +1109,11 @@
             createKeyBtn.textContent = '⏳ Đang tạo...';
 
             try {
-                const keyData = await createKey(email, expireMinutes, prefix, hwid);
+                const keyData = await createKey(email, expireMinutes, prefix);
                 generatedKey = keyData;
                 generatedExpire = keyData.customExpire;
                 renderGeneratedKey(keyData);
-                
-                let msg = `✅ Key "${keyData.key}" đã được tạo thành công!`;
-                if (hwid) msg += ` (HWID: ${hwid})`;
-                showToast(msg, 'success');
+                showToast(`✅ Key "${keyData.key}" đã được tạo thành công!`, 'success');
                 await refreshKeyList();
             } catch (e) {
                 showToast(`❌ Lỗi: ${e.message}`, 'error');
@@ -1336,15 +1170,6 @@
         });
 
         // ================================================================
-        // HWID HANDLING
-        // ================================================================
-        getHwidBtn.addEventListener('click', () => {
-            const hwid = generateHWID();
-            hwidInput.value = hwid;
-            showToast('📋 Đã lấy HWID hiện tại', 'info');
-        });
-
-        // ================================================================
         // AUTO REFRESH
         // ================================================================
         let autoRefreshInterval = null;
@@ -1380,16 +1205,12 @@
             emailInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') handleCreateKey();
             });
-            hwidInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') handleCreateKey();
-            });
 
             // Start auto refresh
             startAutoRefresh();
 
             log('✅ Key Manager initialized');
             log(`🌐 IP: ${currentIP}`);
-            log(`🖥️ HWID: ${currentHWID}`);
             log(`📋 Allowed IPs: ${CONFIG.ALLOWED_IPS.join(', ')}`);
         });
 
@@ -1408,7 +1229,6 @@
 
         console.log('🚀 Key Manager v2.0');
         console.log('📌 Chỉ whitelist IP mới được truy cập');
-        console.log('🖥️ HWID được tạo tự động dựa trên thông tin thiết bị');
         console.log('💡 Ctrl+Enter để tạo key nhanh');
         console.log(`🔒 Allowed IPs: ${CONFIG.ALLOWED_IPS.join(', ')}`);
         console.log(`🌐 API URL: ${CONFIG.API_BASE}`);
