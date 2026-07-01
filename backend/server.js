@@ -144,7 +144,8 @@ if (SERVE_HTML) {
                         stats: '/api/stats',
                         html: '/index.html',
                         admin: '/admin.html',
-                        dashboard: '/dashboard'
+                        dashboard: '/dashboard',
+                        checkBrowser: '/api/check-browser'
                     },
                     timestamp: new Date().toISOString()
                 });
@@ -175,7 +176,8 @@ if (SERVE_HTML) {
                     keys: '/api/keys',
                     access: '/api/access (GET)',
                     request: '/api/request (GET - cần access key)',
-                    stats: '/api/stats'
+                    stats: '/api/stats',
+                    checkBrowser: '/api/check-browser'
                 },
                 note: 'Frontend folder not found. Please add frontend/index.html',
                 timestamp: new Date().toISOString()
@@ -196,7 +198,6 @@ app.get('/dashboard', (req, res) => {
     
     const cleanIP = clientIP.replace('::ffff:', '').replace('::1', '127.0.0.1').split(',')[0].trim();
     
-    // Kiểm tra whitelist
     if (!isWhitelisted(cleanIP)) {
         if (DEBUG) console.log(`⛔ IP ${cleanIP} bị từ chối truy cập /dashboard`);
         return res.status(403).json({
@@ -214,6 +215,76 @@ app.get('/dashboard', (req, res) => {
             message: 'dashboard.html not found'
         });
     }
+});
+
+// ================================================================
+// API CHECK BROWSER - Kiểm tra browser đã tạo key chưa
+// ================================================================
+app.get('/api/check-browser', (req, res) => {
+    const clientIP = req.headers['x-forwarded-for'] || 
+                     req.headers['x-real-ip'] || 
+                     req.connection.remoteAddress || 
+                     req.socket.remoteAddress || 
+                     '0.0.0.0';
+    
+    const cleanIP = clientIP.replace('::ffff:', '').replace('::1', '127.0.0.1').split(',')[0].trim();
+    const browserId = req.query.browser_id || req.headers['x-browser-id'];
+    
+    if (!browserId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Browser ID required'
+        });
+    }
+    
+    const logs = cleanExpiredLogs();
+    const now = Date.now();
+    
+    // Tìm key của browser này
+    const browserLog = logs.find(log => {
+        return log.browserId === browserId;
+    });
+    
+    if (browserLog) {
+        // Kiểm tra thời gian còn lại
+        let expireTime;
+        if (browserLog.customExpire) {
+            expireTime = browserLog.customExpire;
+        } else {
+            const logTime = new Date(browserLog.timestamp).getTime();
+            expireTime = logTime + EXPIRE_TIME;
+        }
+        
+        const timeRemaining = expireTime - now;
+        const minutesRemaining = Math.floor(timeRemaining / 60000);
+        const secondsRemaining = Math.floor((timeRemaining % 60000) / 1000);
+        
+        if (timeRemaining > 0) {
+            return res.json({
+                success: true,
+                hasKey: true,
+                key: browserLog.key,
+                expires_in: `${minutesRemaining} phút ${secondsRemaining} giây`,
+                expires_at: new Date(expireTime).toISOString(),
+                remaining_minutes: minutesRemaining
+            });
+        } else {
+            // Key đã hết hạn, cho phép tạo mới
+            return res.json({
+                success: true,
+                hasKey: false,
+                message: 'Key expired, you can create a new one',
+                expired: true
+            });
+        }
+    }
+    
+    // Chưa có key
+    res.json({
+        success: true,
+        hasKey: false,
+        message: 'No key found for this browser'
+    });
 });
 
 // ================================================================
@@ -275,11 +346,9 @@ function cleanExpiredLogs() {
     const now = Date.now();
     
     const validLogs = logs.filter(log => {
-        // Ưu tiên customExpire nếu có
         if (log.customExpire) {
             return log.customExpire > now;
         }
-        // Fallback: dùng timestamp + EXPIRE_TIME
         const logTime = new Date(log.timestamp).getTime();
         return (now - logTime) <= EXPIRE_TIME;
     });
@@ -320,7 +389,6 @@ function findKeyByIP(ip) {
     
     const validLog = logs.find(log => {
         if (log.ip !== ip) return false;
-        // Kiểm tra customExpire hoặc timestamp + EXPIRE_TIME
         if (log.customExpire) {
             return log.customExpire > now;
         }
@@ -396,7 +464,8 @@ app.get('/api/health', (req, res) => {
             whitelist_ips: WHITELIST_IPS,
             serve_html: SERVE_HTML,
             allowed_domain: ALLOWED_DOMAIN,
-            max_expire_days: 7
+            max_expire_days: 7,
+            browser_cooldown: '99 phút'
         }
     });
 });
@@ -428,7 +497,6 @@ app.get('/api/logs', (req, res) => {
     const now = Date.now();
     
     const sanitizedLogs = logs.slice(0, limit).map(log => {
-        // Lấy thời gian hết hạn
         let expireTime;
         let expireMinutes;
         if (log.customExpire) {
@@ -466,6 +534,7 @@ app.get('/api/logs', (req, res) => {
             timestamp: log.timestamp,
             method: log.method || 'GET',
             source: log.source || 'browser',
+            browserId: log.browserId || null,
             access_key_used: log.access_key_used ? log.access_key_used.substring(0, 30) + '...' : null,
             expires_at: new Date(expireTime).toISOString(),
             expire_minutes: expireMinutes,
@@ -482,6 +551,7 @@ app.get('/api/logs', (req, res) => {
         max_logs: MAX_LOGS || 'unlimited',
         default_expire_time: `${EXPIRE_TIME/60000} minutes`,
         max_expire_days: 7,
+        browser_cooldown: '99 phút',
         note: `Key sẽ tự động bị xóa sau thời gian đã chọn (tối đa 7 ngày)`
     });
 });
@@ -517,6 +587,7 @@ app.get('/api/keys', (req, res) => {
                 action: log.action,
                 method: log.method || 'GET',
                 source: log.source || 'browser',
+                browserId: log.browserId || null,
                 customExpire: log.customExpire || null,
                 expireMinutes: log.expireMinutes || SETTINGS.EXPIRE_TIME_MINUTES
             };
@@ -534,6 +605,7 @@ app.get('/api/keys', (req, res) => {
         max_logs: MAX_LOGS || 'unlimited',
         default_expire_time: `${EXPIRE_TIME/60000} minutes`,
         max_expire_days: 7,
+        browser_cooldown: '99 phút',
         data: ipKeys
     });
 });
@@ -581,7 +653,7 @@ app.get('/api/access', (req, res) => {
 });
 
 // ================================================================
-// API REQUEST (GET) - HỖ TRỢ CUSTOM EXPIRE
+// API REQUEST (GET) - HỖ TRỢ CUSTOM EXPIRE & BROWSER ID
 // ================================================================
 app.get('/api/request', (req, res) => {
     const accessKey = req.query.access_key || req.headers['x-access-key'];
@@ -622,15 +694,56 @@ app.get('/api/request', (req, res) => {
     
     // ===== LẤY CUSTOM EXPIRE TIME TỪ REQUEST =====
     let customExpireMinutes = parseInt(req.query.expire_minutes) || SETTINGS.EXPIRE_TIME_MINUTES;
-    // Giới hạn tối đa 7 ngày (10080 phút)
     if (customExpireMinutes > 10080) customExpireMinutes = 10080;
     if (customExpireMinutes < 1) customExpireMinutes = 1;
     const customExpireMs = customExpireMinutes * 60 * 1000;
     
+    // ===== LẤY BROWSER ID =====
+    const browserId = req.query.browser_id || req.headers['x-browser-id'] || null;
+    
+    // Kiểm tra browser đã có key chưa (chỉ cho non-whitelist)
+    if (!isWhitelisted(cleanIP) && browserId) {
+        const logs = readLogs();
+        const now = Date.now();
+        const existingBrowserLog = logs.find(log => {
+            if (log.browserId !== browserId) return false;
+            if (log.customExpire) {
+                return log.customExpire > now;
+            }
+            const logTime = new Date(log.timestamp).getTime();
+            return (now - logTime) <= EXPIRE_TIME;
+        });
+        
+        if (existingBrowserLog) {
+            let expireTime;
+            if (existingBrowserLog.customExpire) {
+                expireTime = existingBrowserLog.customExpire;
+            } else {
+                const logTime = new Date(existingBrowserLog.timestamp).getTime();
+                expireTime = logTime + EXPIRE_TIME;
+            }
+            const timeRemaining = expireTime - now;
+            const minutesRemaining = Math.floor(timeRemaining / 60000);
+            
+            if (DEBUG) console.log(`⛔ Browser ${browserId} đã có key, từ chối tạo mới`);
+            
+            return res.status(429).json({
+                success: false,
+                message: 'Browser already has a key',
+                error: 'Mỗi browser chỉ được tạo 1 key mỗi 99 phút',
+                data: {
+                    key: existingBrowserLog.key,
+                    expires_in: `${minutesRemaining} phút`,
+                    remaining_minutes: minutesRemaining,
+                    cooldown: '99 phút'
+                }
+            });
+        }
+    }
+    
     if (ONE_KEY_PER_IP && !isWhitelisted(cleanIP)) {
         const existingLog = findKeyByIP(cleanIP);
         if (existingLog) {
-            // Lấy thời gian hết hạn từ log
             let expireTime;
             if (existingLog.customExpire) {
                 expireTime = existingLog.customExpire;
@@ -663,12 +776,13 @@ app.get('/api/request', (req, res) => {
     const email = req.query.email || 'guest@example.com';
     const hwid = req.query.hwid || null;
     
-    // ===== LƯU CUSTOM EXPIRE TIME VÀO LOG =====
+    // ===== LƯU CUSTOM EXPIRE TIME VÀ BROWSER ID VÀO LOG =====
     const logEntry = {
         id: Date.now(),
         ip: cleanIP,
         email: email,
         hwid: hwid,
+        browserId: browserId,
         action: isWhitelisted(cleanIP) ? 'whitelist_generate' : 'auto_generate',
         key: newKey,
         timestamp: timestamp,
@@ -684,7 +798,7 @@ app.get('/api/request', (req, res) => {
     logs.unshift(logEntry);
     writeLogs(logs);
     
-    if (DEBUG) console.log(`✅ Tạo key mới cho IP ${cleanIP}: ${newKey} (expire: ${customExpireMinutes} phút)`);
+    if (DEBUG) console.log(`✅ Tạo key mới cho IP ${cleanIP}: ${newKey} (expire: ${customExpireMinutes} phút, browser: ${browserId || 'N/A'})`);
     
     const responseData = {
         ip: cleanIP,
@@ -694,7 +808,8 @@ app.get('/api/request', (req, res) => {
         expire_after: `${customExpireMinutes} minutes`,
         expire_minutes: customExpireMinutes,
         note: `Key sẽ tự động xóa sau ${customExpireMinutes} phút (${Math.floor(customExpireMinutes/60)} giờ)`,
-        access_key_used: accessKey.substring(0, 20) + '...'
+        access_key_used: accessKey.substring(0, 20) + '...',
+        browser_id: browserId
     };
     
     if (hwid) {
@@ -714,10 +829,10 @@ app.get('/api/request', (req, res) => {
 });
 
 // ================================================================
-// API REQUEST (POST) - HỖ TRỢ CUSTOM EXPIRE
+// API REQUEST (POST) - HỖ TRỢ CUSTOM EXPIRE & BROWSER ID
 // ================================================================
 app.post('/api/request', (req, res) => {
-    const { email, action, custom_ip, access_key, expire_minutes, hwid } = req.body;
+    const { email, action, custom_ip, access_key, expire_minutes, hwid, browser_id } = req.body;
     
     if (!access_key) {
         return res.status(401).json({
@@ -763,6 +878,49 @@ app.post('/api/request', (req, res) => {
     if (customExpireMinutes < 1) customExpireMinutes = 1;
     const customExpireMs = customExpireMinutes * 60 * 1000;
     
+    // ===== LẤY BROWSER ID =====
+    const browserId = browser_id || null;
+    
+    // Kiểm tra browser đã có key chưa (chỉ cho non-whitelist)
+    if (!isWhitelisted(cleanIP) && browserId) {
+        const logs = readLogs();
+        const now = Date.now();
+        const existingBrowserLog = logs.find(log => {
+            if (log.browserId !== browserId) return false;
+            if (log.customExpire) {
+                return log.customExpire > now;
+            }
+            const logTime = new Date(log.timestamp).getTime();
+            return (now - logTime) <= EXPIRE_TIME;
+        });
+        
+        if (existingBrowserLog) {
+            let expireTime;
+            if (existingBrowserLog.customExpire) {
+                expireTime = existingBrowserLog.customExpire;
+            } else {
+                const logTime = new Date(existingBrowserLog.timestamp).getTime();
+                expireTime = logTime + EXPIRE_TIME;
+            }
+            const timeRemaining = expireTime - now;
+            const minutesRemaining = Math.floor(timeRemaining / 60000);
+            
+            if (DEBUG) console.log(`⛔ Browser ${browserId} đã có key (POST), từ chối tạo mới`);
+            
+            return res.status(429).json({
+                success: false,
+                message: 'Browser already has a key',
+                error: 'Mỗi browser chỉ được tạo 1 key mỗi 99 phút',
+                data: {
+                    key: existingBrowserLog.key,
+                    expires_in: `${minutesRemaining} phút`,
+                    remaining_minutes: minutesRemaining,
+                    cooldown: '99 phút'
+                }
+            });
+        }
+    }
+    
     if (ONE_KEY_PER_IP && !isWhitelisted(cleanIP)) {
         const existingLog = findKeyByIP(cleanIP);
         if (existingLog) {
@@ -796,12 +954,13 @@ app.post('/api/request', (req, res) => {
     const timestamp = new Date().toISOString();
     const userEmail = email || 'api_request@example.com';
     
-    // ===== LƯU CUSTOM EXPIRE TIME VÀO LOG =====
+    // ===== LƯU CUSTOM EXPIRE TIME VÀ BROWSER ID VÀO LOG =====
     const logEntry = {
         id: Date.now(),
         ip: cleanIP,
         email: userEmail,
         hwid: hwid || null,
+        browserId: browserId,
         action: action || (isWhitelisted(cleanIP) ? 'whitelist_generate' : 'api_generate'),
         key: newKey,
         timestamp: timestamp,
@@ -817,7 +976,7 @@ app.post('/api/request', (req, res) => {
     logs.unshift(logEntry);
     writeLogs(logs);
     
-    if (DEBUG) console.log(`📡 API Request: ${cleanIP} | ${userEmail} | ${newKey} (expire: ${customExpireMinutes} phút)`);
+    if (DEBUG) console.log(`📡 API Request: ${cleanIP} | ${userEmail} | ${newKey} (expire: ${customExpireMinutes} phút, browser: ${browserId || 'N/A'})`);
     
     const responseData = {
         ip: cleanIP,
@@ -826,7 +985,8 @@ app.post('/api/request', (req, res) => {
         timestamp: timestamp,
         expire_after: `${customExpireMinutes} minutes`,
         expire_minutes: customExpireMinutes,
-        source: 'api'
+        source: 'api',
+        browser_id: browserId
     };
     
     if (hwid) {
@@ -849,7 +1009,7 @@ app.post('/api/request', (req, res) => {
 // API EXTERNAL
 // ================================================================
 app.post('/api/external', (req, res) => {
-    const { api_key, email, action, custom_ip, access_key, expire_minutes } = req.body;
+    const { api_key, email, action, custom_ip, access_key, expire_minutes, browser_id } = req.body;
     
     if (!api_key || api_key !== API_SECRET) {
         return res.status(401).json({
@@ -874,11 +1034,12 @@ app.post('/api/external', (req, res) => {
         });
     }
     
-    // ===== LẤY CUSTOM EXPIRE TIME TỪ REQUEST =====
     let customExpireMinutes = parseInt(expire_minutes) || SETTINGS.EXPIRE_TIME_MINUTES;
     if (customExpireMinutes > 10080) customExpireMinutes = 10080;
     if (customExpireMinutes < 1) customExpireMinutes = 1;
     const customExpireMs = customExpireMinutes * 60 * 1000;
+    
+    const browserId = browser_id || null;
     
     const newKey = generateKey();
     const timestamp = new Date().toISOString();
@@ -888,6 +1049,7 @@ app.post('/api/external', (req, res) => {
         id: Date.now(),
         ip: cleanIP,
         email: userEmail,
+        browserId: browserId,
         action: action || (isWhitelisted(cleanIP) ? 'whitelist_external' : 'external_generate'),
         key: newKey,
         timestamp: timestamp,
@@ -913,7 +1075,8 @@ app.post('/api/external', (req, res) => {
         timestamp: timestamp,
         expire_after: `${customExpireMinutes} minutes`,
         expire_minutes: customExpireMinutes,
-        source: 'external'
+        source: 'external',
+        browser_id: browserId
     };
     
     if (isWhitelisted(cleanIP)) {
@@ -935,9 +1098,19 @@ app.post('/api/external', (req, res) => {
 app.get('/api/stats', (req, res) => {
     const logs = cleanExpiredLogs();
     const accessKeys = readAccessKeys();
+    
+    // Đếm số browser unique
+    const uniqueBrowsers = new Set();
+    logs.forEach(log => {
+        if (log.browserId) {
+            uniqueBrowsers.add(log.browserId);
+        }
+    });
+    
     const stats = {
         totalRequests: logs.length,
         uniqueIPs: [...new Set(logs.map(l => l.ip))].length,
+        uniqueBrowsers: uniqueBrowsers.size,
         actions: logs.reduce((acc, log) => {
             acc[log.action] = (acc[log.action] || 0) + 1;
             return acc;
@@ -959,6 +1132,7 @@ app.get('/api/stats', (req, res) => {
         lastRequest: logs.length > 0 ? logs[0].timestamp : null,
         default_expire_time: `${EXPIRE_TIME/60000} minutes`,
         max_expire_days: 7,
+        browser_cooldown: '99 phút',
         one_key_per_ip: ONE_KEY_PER_IP,
         key_format: `${KEY_PREFIX}-xxxxxxxxxxxxxxxx`,
         access_key_format: `${ACCESS_KEY_PREFIX}-[80 ký tự hỗn hợp + timestamp]`,
@@ -1009,7 +1183,8 @@ app.use((req, res) => {
                 keys: '/api/keys',
                 access: '/api/access',
                 request: '/api/request (cần access key)',
-                stats: '/api/stats'
+                stats: '/api/stats',
+                checkBrowser: '/api/check-browser'
             }
         });
     } else if (SERVE_HTML) {
@@ -1054,6 +1229,7 @@ app.listen(PORT, () => {
     console.log(`   ⏰ Thời gian hết hạn mặc định: ${EXPIRE_TIME/60000} phút`);
     console.log(`   ⏰ Thời gian hết hạn tối đa: 7 ngày (10080 phút)`);
     console.log(`   🔑 Giới hạn 1 key/IP: ${ONE_KEY_PER_IP ? 'BẬT' : 'TẮT'}`);
+    console.log(`   🖥️ Browser cooldown: 99 phút`);
     console.log(`   🌟 Whitelist IP: ${WHITELIST_IPS.join(', ') || 'Không có'}`);
     console.log(`   📊 Giới hạn logs: ${MAX_LOGS || 'Không giới hạn'}`);
     console.log(`   🔑 Prefix key: ${KEY_PREFIX}`);
@@ -1066,7 +1242,8 @@ app.listen(PORT, () => {
     console.log(`   🌐 Production: https://key-system-aurahub.onrender.com/`);
     console.log(`   🔒 /api/logs (WHITELIST ONLY)`);
     console.log(`   🔑 /api/access`);
-    console.log(`   🔑 /api/request (hỗ trợ expire_minutes)`);
+    console.log(`   🔑 /api/request (hỗ trợ expire_minutes & browser_id)`);
+    console.log(`   🖥️ /api/check-browser (kiểm tra browser đã có key)`);
     console.log(`   📊 /api/stats`);
     console.log(`   📋 /api/keys`);
     console.log(`   📁 /admin.html`);
