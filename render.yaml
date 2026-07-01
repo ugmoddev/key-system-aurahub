@@ -2,7 +2,7 @@
 services:
   # ===== BACKEND API =====
   - type: web
-    name: api-key-manager-backend
+    name: key-system-aurahub
     runtime: node
     plan: free
     region: singapore
@@ -16,13 +16,13 @@ services:
       - key: API_SECRET_KEY
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: https://api-key-manager-frontend.onrender.com
+        value: https://key-system-aurahub.onrender.com
       - key: LOG_LEVEL
         value: info
 
   # ===== FRONTEND STATIC =====
   - type: static
-    name: api-key-manager-frontend
+    name: key-system-aurahub-frontend
     runtime: static
     plan: free
     region: singapore
@@ -30,4 +30,4 @@ services:
     staticPublishPath: ./frontend
     envVars:
       - key: API_URL
-        value: https://api-key-manager-backend.onrender.com
+        value: https://key-system-aurahub.onrender.com
