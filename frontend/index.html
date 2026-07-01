@@ -208,6 +208,17 @@
             font-style: italic;
         }
 
+        .key-section .cooldown {
+            color: #ffc107;
+            font-size: 13px;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .key-section .cooldown.error {
+            color: #ff6b6b;
+        }
+
         .status {
             position: relative;
             z-index: 1;
@@ -344,6 +355,110 @@
             color: #ffc107;
         }
 
+        /* Cooldown Timer */
+        .cooldown-timer {
+            display: none;
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 193, 7, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 193, 7, 0.1);
+            margin-top: 10px;
+        }
+
+        .cooldown-timer.show {
+            display: block;
+        }
+
+        .cooldown-timer .timer-text {
+            color: #ffc107;
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+        }
+
+        .cooldown-timer .timer-label {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .cooldown-timer .existing-key {
+            color: #64ffda;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            word-break: break-all;
+            margin-top: 6px;
+        }
+
+        .browser-info {
+            position: relative;
+            z-index: 1;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.15);
+            text-align: center;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 14px 25px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 999;
+            animation: slideUp 0.4s ease;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .toast.warning {
+            background: rgba(255, 193, 7, 0.12);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.15);
+        }
+
+        .toast.success {
+            background: rgba(100, 255, 218, 0.12);
+            color: #64ffda;
+            border: 1px solid rgba(100, 255, 218, 0.15);
+        }
+
+        .toast.error {
+            background: rgba(255, 107, 107, 0.12);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.15);
+        }
+
+        .toast.info {
+            background: rgba(102, 126, 234, 0.12);
+            color: #a78bfa;
+            border: 1px solid rgba(102, 126, 234, 0.15);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .toast.hide {
+            animation: slideDown 0.3s ease forwards;
+        }
+
+        @keyframes slideDown {
+            to { transform: translateY(30px); opacity: 0; }
+        }
+
         /* Blocked Overlay */
         .blocked-overlay {
             display: none;
@@ -417,6 +532,14 @@
             .btn-group {
                 flex-direction: column;
             }
+            .toast {
+                bottom: 15px;
+                right: 15px;
+                left: 15px;
+                max-width: none;
+                font-size: 13px;
+                padding: 12px 18px;
+            }
         }
     </style>
 </head>
@@ -449,7 +572,7 @@
         <div class="logo">
             <span class="icon">🔑</span>
             <h1>AuraHub Key</h1>
-            <div class="sub">Auto get key</div>
+            <div class="sub">Auto get key · 99 phút cooldown</div>
         </div>
 
         <div class="ip-display">
@@ -464,6 +587,17 @@
             <div class="note" id="noteDisplay"></div>
         </div>
 
+        <!-- Cooldown Timer -->
+        <div class="cooldown-timer" id="cooldownTimer">
+            <div class="timer-label">⏳ Vui lòng đợi trước khi tạo key mới</div>
+            <div class="timer-text" id="cooldownDisplay">--:--</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.2);margin-top:4px;">Key hiện tại:</div>
+            <div class="existing-key" id="existingKeyDisplay">---</div>
+        </div>
+
+        <!-- Browser Info -->
+        <div class="browser-info" id="browserInfo">🖥️ Browser ID: ---</div>
+
         <div class="status">
             <span class="dot loading" id="statusDot"></span>
             <span class="status-text" id="statusText">Initializing...</span>
@@ -474,7 +608,7 @@
             <button class="btn btn-secondary" id="refreshBtn">↻ Refresh</button>
         </div>
 
-        <div class="footer">AuraHub Key Manager · Onthitracnghiem.com</div>
+        <div class="footer">AuraHub Key Manager · Mỗi browser 1 key / 99 phút</div>
     </div>
 
     <script>
@@ -485,25 +619,18 @@
             const referrer = document.referrer || '';
             const allowedReferrer = 'https://onthitracnghiem.com';
             
-            // Chuẩn hóa: bỏ dấu / cuối
             const cleanReferrer = referrer.replace(/\/+$/, '');
             const cleanAllowed = allowedReferrer.replace(/\/+$/, '');
             
-            // Kiểm tra referrer có bắt đầu bằng allowed không
             if (!cleanReferrer.startsWith(cleanAllowed)) {
-                // Ẩn nội dung
                 const app = document.getElementById('app');
                 if (app) {
                     app.style.display = 'none';
                 }
-                
-                // Hiển thị overlay bị chặn
                 const overlay = document.getElementById('blockedOverlay');
                 if (overlay) {
                     overlay.classList.add('show');
                 }
-                
-                // Xóa console
                 console.clear();
                 console.log('⛔ Access denied. Referrer:', referrer || '(none)');
                 console.log('✅ Allowed:', allowedReferrer);
@@ -741,8 +868,79 @@
             CHECK_INTERVAL: 5,
             ACCESS_ENDPOINT: '/api/access',
             REQUEST_ENDPOINT: '/api/request',
-            DEBUG: true
+            CHECK_BROWSER_ENDPOINT: '/api/check-browser',
+            DEBUG: true,
+            COOLDOWN_MINUTES: 99
         };
+
+        // ================================================================
+        // 🖥️ BROWSER FINGERPRINT - Tạo ID duy nhất cho browser
+        // ================================================================
+        function generateBrowserId() {
+            try {
+                const storedId = sessionStorage.getItem('aurahub_browser_id');
+                if (storedId) {
+                    return storedId;
+                }
+
+                const components = [];
+                components.push(navigator.userAgent);
+                components.push(`${screen.width}x${screen.height}x${screen.colorDepth}`);
+                components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
+                components.push(navigator.platform);
+                components.push(navigator.language);
+                components.push(navigator.hardwareConcurrency || 'unknown');
+                components.push(navigator.deviceMemory || 'unknown');
+                components.push('ontouchstart' in window ? 'touch' : 'no-touch');
+                
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (gl) {
+                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                        if (debugInfo) {
+                            components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL));
+                            components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
+                        }
+                    }
+                } catch (e) {}
+                
+                try {
+                    const fonts = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana'];
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    fonts.forEach(font => {
+                        ctx.font = '12px ' + font;
+                        ctx.fillText('Test', 0, 10);
+                        components.push(ctx.measureText('Test').width);
+                    });
+                } catch (e) {}
+                
+                const combined = components.join('|||');
+                let hash = 0;
+                for (let i = 0; i < combined.length; i++) {
+                    const char = combined.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                
+                const hexHash = Math.abs(hash).toString(16).padStart(8, '0');
+                const timestamp = Date.now().toString(36).slice(-4);
+                const browserId = `BROWSER-${hexHash}-${timestamp}`;
+                
+                try {
+                    sessionStorage.setItem('aurahub_browser_id', browserId);
+                } catch (e) {}
+                
+                return browserId;
+            } catch (e) {
+                const fallback = `BROWSER-${Math.random().toString(36).substring(2, 10)}`;
+                try {
+                    sessionStorage.setItem('aurahub_browser_id', fallback);
+                } catch (e) {}
+                return fallback;
+            }
+        }
 
         // ================================================================
         // MAIN LOGIC
@@ -750,7 +948,9 @@
         const API_BASE = SETTINGS.API_BASE;
         const API_ACCESS = API_BASE + SETTINGS.ACCESS_ENDPOINT;
         const API_REQUEST = API_BASE + SETTINGS.REQUEST_ENDPOINT;
+        const API_CHECK_BROWSER = API_BASE + SETTINGS.CHECK_BROWSER_ENDPOINT;
         const CHECK_INTERVAL = SETTINGS.CHECK_INTERVAL * 1000;
+        const COOLDOWN_MINUTES = SETTINGS.COOLDOWN_MINUTES;
 
         function getIPUrl() {
             const services = {
@@ -761,6 +961,9 @@
             return services[SETTINGS.IP_SERVICE] || services['ipify'];
         }
 
+        // ================================================================
+        // DOM REFS
+        // ================================================================
         const ipDisplay = document.getElementById('ipDisplay');
         const keyDisplay = document.getElementById('keyDisplay');
         const expireDisplay = document.getElementById('expireDisplay');
@@ -770,10 +973,43 @@
         const statusText = document.getElementById('statusText');
         const getKeyBtn = document.getElementById('getKeyBtn');
         const refreshBtn = document.getElementById('refreshBtn');
+        const cooldownTimer = document.getElementById('cooldownTimer');
+        const cooldownDisplay = document.getElementById('cooldownDisplay');
+        const existingKeyDisplay = document.getElementById('existingKeyDisplay');
+        const browserInfo = document.getElementById('browserInfo');
 
+        // ================================================================
+        // STATE
+        // ================================================================
         let currentIP = '';
-        let currentAccessKey = 'AuraHub-Access-RQXNZS17ZCNWE3Zrm60imem717qrtr{:68;?#\u003C\u003C87;#8?}EAa;hk_Qh*4K0LN0m/jqh)F{o!*XEl:m!bmqzaz78ks18vdksh';
+        let currentAccessKey = '';
         let lastCheckedIP = '';
+        let browserId = '';
+        let isCooldown = false;
+        let cooldownInterval = null;
+        let existingKey = null;
+        let existingExpireTime = 0;
+
+        // ================================================================
+        // TOAST NOTIFICATIONS
+        // ================================================================
+        function showToast(message, type = 'info', duration = 4000) {
+            const existing = document.querySelector('.toast');
+            if (existing) {
+                existing.classList.add('hide');
+                setTimeout(() => existing.remove(), 300);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
 
         // ================================================================
         // UTILITY FUNCTIONS
@@ -789,6 +1025,10 @@
             } else if (type === 'error') {
                 statusDot.className = 'dot error';
                 statusText.className = 'status-text error';
+            } else if (type === 'cooldown') {
+                statusDot.className = 'dot loading';
+                statusText.className = 'status-text';
+                statusText.textContent = '⏳ Đang chờ cooldown...';
             } else {
                 statusDot.className = 'dot loading';
                 statusText.className = 'status-text';
@@ -834,6 +1074,91 @@
             } else {
                 ipDisplay.className = 'ip-value matched';
             }
+        }
+
+        // ================================================================
+        // BROWSER CHECK - Kiểm tra browser đã có key chưa
+        // ================================================================
+        async function checkBrowserKey() {
+            try {
+                const url = `${API_CHECK_BROWSER}?browser_id=${encodeURIComponent(browserId)}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.hasKey) {
+                    existingKey = data.key;
+                    existingExpireTime = new Date(data.expires_at).getTime();
+                    showCooldown(existingKey, data.remaining_minutes);
+                    return true;
+                } else {
+                    hideCooldown();
+                    return false;
+                }
+            } catch (error) {
+                console.error('Check browser error:', error);
+                return false;
+            }
+        }
+
+        // ================================================================
+        // COOLDOWN DISPLAY
+        // ================================================================
+        function showCooldown(key, remainingMinutes) {
+            isCooldown = true;
+            cooldownTimer.classList.add('show');
+            existingKeyDisplay.textContent = key;
+            
+            let remainingSeconds = remainingMinutes * 60;
+            
+            if (cooldownInterval) {
+                clearInterval(cooldownInterval);
+            }
+            
+            cooldownInterval = setInterval(() => {
+                if (remainingSeconds <= 0) {
+                    clearInterval(cooldownInterval);
+                    cooldownInterval = null;
+                    hideCooldown();
+                    showToast('✅ Key đã hết hạn, bạn có thể tạo key mới!', 'success');
+                    return;
+                }
+                
+                const mins = Math.floor(remainingSeconds / 60);
+                const secs = Math.floor(remainingSeconds % 60);
+                cooldownDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                remainingSeconds--;
+            }, 1000);
+            
+            setStatus('⏳ Browser đã có key', 'cooldown');
+            getKeyBtn.disabled = true;
+            getKeyBtn.textContent = '⏳ Đang chờ...';
+            
+            setKey(key, `⏱ Còn ${remainingMinutes} phút nữa mới được tạo key mới`, 'Mỗi browser chỉ được tạo 1 key mỗi 99 phút', '');
+        }
+
+        function hideCooldown() {
+            isCooldown = false;
+            cooldownTimer.classList.remove('show');
+            
+            if (cooldownInterval) {
+                clearInterval(cooldownInterval);
+                cooldownInterval = null;
+            }
+            
+            getKeyBtn.disabled = false;
+            getKeyBtn.textContent = '🚀 Get Key';
+            existingKey = null;
+            existingExpireTime = 0;
         }
 
         // ================================================================
@@ -900,6 +1225,17 @@
         // FETCH MAIN KEY
         // ================================================================
         async function fetchKey(forceRefresh = false) {
+            if (isCooldown) {
+                showToast('⏳ Vui lòng đợi cooldown kết thúc!', 'warning');
+                return;
+            }
+
+            const hasKey = await checkBrowserKey();
+            if (hasKey) {
+                showToast('⏳ Browser này đã có key, vui lòng đợi 99 phút!', 'warning');
+                return;
+            }
+
             const newIP = await fetchIP(forceRefresh);
             if (!newIP) {
                 setError('Cannot get IP');
@@ -924,7 +1260,7 @@
             getKeyBtn.disabled = true;
 
             try {
-                const url = `${API_REQUEST}?access_key=${encodeURIComponent(currentAccessKey)}`;
+                const url = `${API_REQUEST}?access_key=${encodeURIComponent(currentAccessKey)}&email=guest@example.com&browser_id=${encodeURIComponent(browserId)}`;
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -963,6 +1299,10 @@
 
                     setKey(keyData.key, expireText, note, type);
                     setStatus('✅ Key ready', 'online');
+                    
+                    await checkBrowserKey();
+                    
+                    showToast('✅ Key created successfully!', 'success');
 
                     if (data.message && data.message.includes('already exists')) {
                         setStatus('ℹ️ Key already exists for this IP', 'online');
@@ -974,6 +1314,7 @@
                 console.error('Failed to get key:', error);
                 setError(error.message);
                 setStatus('❌ ' + error.message, 'error');
+                showToast('❌ ' + error.message, 'error');
             } finally {
                 getKeyBtn.textContent = '🚀 Get Key';
                 getKeyBtn.disabled = false;
@@ -1009,15 +1350,24 @@
         // ================================================================
         // EVENTS
         // ================================================================
-        getKeyBtn.addEventListener('click', () => fetchKey(true));
+        getKeyBtn.addEventListener('click', () => {
+            if (isCooldown) {
+                showToast('⏳ Vui lòng đợi cooldown kết thúc!', 'warning');
+                return;
+            }
+            fetchKey(true);
+        });
 
         refreshBtn.addEventListener('click', async () => {
             setStatus('Refreshing...', 'loading');
             currentAccessKey = '';
             lastCheckedIP = '';
             await fetchIP(true);
-            await fetchAccessKey();
-            await fetchKey();
+            await checkBrowserKey();
+            if (!isCooldown) {
+                await fetchAccessKey();
+                await fetchKey();
+            }
             setStatus('✅ Refreshed', 'online');
         });
 
@@ -1025,16 +1375,34 @@
         // INIT
         // ================================================================
         document.addEventListener('DOMContentLoaded', async () => {
+            // Tạo browser ID
+            browserId = generateBrowserId();
+            console.log('🖥️ Browser ID:', browserId);
+            
+            // Hiển thị browser info
+            browserInfo.textContent = `🖥️ Browser ID: ${browserId.substring(0, 20)}...`;
+
             setStatus('Initializing...', 'loading');
             
             await fetchIP(true);
-            await fetchAccessKey();
-            await fetchKey();
+            
+            // Kiểm tra browser đã có key chưa
+            await checkBrowserKey();
+            
+            if (!isCooldown) {
+                await fetchAccessKey();
+                await fetchKey();
+            } else {
+                setStatus('⏳ Browser has key, waiting...', 'cooldown');
+            }
             
             setInterval(checkIPChanged, CHECK_INTERVAL);
+            setInterval(checkBrowserKey, 30000); // Kiểm tra mỗi 30s
+            
             if (SETTINGS.DEBUG) {
                 console.log('🔄 Auto IP check every', SETTINGS.CHECK_INTERVAL, 'seconds');
-                console.log('🔑 Access key length: 80 chars + timestamp');
+                console.log('🔄 Browser check every 30 seconds');
+                console.log('⏳ Cooldown:', COOLDOWN_MINUTES, 'minutes');
             }
         });
 
@@ -1044,7 +1412,8 @@
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
-                fetchKey(true);
+                if (!isCooldown) fetchKey(true);
+                else showToast('⏳ Đang trong cooldown!', 'warning');
             }
             if (e.key === 'r' || e.key === 'R') {
                 if (!e.ctrlKey && !e.metaKey) {
@@ -1056,6 +1425,8 @@
 
         console.log('🚀 AuraHub Key Manager ready!');
         console.log(`📡 API: ${API_BASE}`);
+        console.log(`🖥️ Browser ID: ${browserId}`);
+        console.log('⏳ Cooldown: 99 phút mỗi browser');
         console.log('💡 Ctrl+Enter to get key, R to refresh');
         console.log('🔒 Anti-DevTools: Instant detection (200ms)');
         console.log('🔒 View-Source: Blocked');
